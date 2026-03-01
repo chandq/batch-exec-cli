@@ -1,5 +1,5 @@
 import path from 'path';
-import { $, cd } from 'zx';
+import { $, within, cd } from 'zx';
 import { parseIgnoreFile } from './ignoreParser.js';
 import { listDirectSubdirectories } from './directoryLister.js';
 import { cyan, red, ProgressBar, clearLine } from './utils/colors.js';
@@ -7,8 +7,55 @@ import { cyan, red, ProgressBar, clearLine } from './utils/colors.js';
 export { parseIgnoreFile };
 export { listDirectSubdirectories };
 
+async function executeInDirectory(subdirPath, command, args, verbose) {
+  try {
+    if (verbose) {
+      console.log(`=== Executing in: ${cyan(subdirPath)} ===`);
+    }
+
+    let result;
+
+    await within(async () => {
+      cd(subdirPath);
+      if (verbose) {
+        result = await $`${command} ${args}`;
+      } else {
+        result = await $`${command} ${args}`.quiet();
+      }
+      if (verbose) {
+        console.log(`${cyan(subdirPath)}: `, result.stdout);
+        if (result.stderr) {
+          console.error(`${cyan(subdirPath)}: `, result.stderr);
+        }
+      }
+    });
+
+    return {
+      success: true,
+      stdout: result.stdout,
+      stderr: result.stderr
+    };
+  } catch (error) {
+    if (verbose) {
+      console.error(red(`Error in ${cyan(subdirPath)}: ${error.message}`));
+      if (error.stdout) {
+        console.log(`${cyan(subdirPath)}: `, error.stdout);
+      }
+      if (error.stderr) {
+        console.error(`${cyan(subdirPath)}: `, error.stderr);
+      }
+    }
+    return {
+      success: false,
+      error: error.message,
+      stdout: error.stdout || '',
+      stderr: error.stderr || ''
+    };
+  }
+}
+
 export async function batchExecute(targetDir, command, args, options = {}) {
-  const { skipPaths = [], verbose = false, showProgress = true } = options;
+  const { skipPaths = [], verbose = false, showProgress = true, parallel = true } = options;
 
   const absoluteTargetDir = path.resolve(targetDir);
 
@@ -22,60 +69,54 @@ export async function batchExecute(targetDir, command, args, options = {}) {
     progressBar.start();
   }
 
-  for (let i = 0; i < subdirs.length; i++) {
-    const subdir = subdirs[i];
-    const subdirPath = path.join(absoluteTargetDir, subdir);
+  if (parallel) {
+    const promises = subdirs.map(async (subdir, index) => {
+      const subdirPath = path.join(absoluteTargetDir, subdir);
+      const result = await executeInDirectory(subdirPath, command, args, verbose);
 
-    try {
-      if (verbose) {
-        console.log(`=== Executing in: ${cyan(subdirPath)} ===`);
+      if (progressBar) {
+        progressBar.increment();
       }
 
-      let result;
+      return { directory: subdir, ...result };
+    });
 
-      cd(subdirPath);
+    const resolvedResults = await Promise.all(promises);
 
-      if (verbose) {
-        result = await $`${command} ${args}`;
-      } else {
-        result = await $`${command} ${args}`.quiet();
-      }
-
-      results.push({
-        directory: subdir,
-        success: true,
-        stdout: result.stdout,
-        stderr: result.stderr
-      });
-
-      if (verbose) {
-        console.log(result.stdout);
-        if (result.stderr) {
-          console.error(result.stderr);
-        }
-      }
-    } catch (error) {
-      results.push({
-        directory: subdir,
-        success: false,
-        error: error.message,
-        stdout: error.stdout || '',
-        stderr: error.stderr || ''
-      });
-
-      if (verbose) {
-        console.error(red(`Error in ${cyan(subdir)}: ${error.message}`));
-        if (error.stdout) {
-          console.log(error.stdout);
-        }
-        if (error.stderr) {
-          console.error(error.stderr);
-        }
+    for (const subdir of subdirs) {
+      const result = resolvedResults.find(r => r.directory === subdir);
+      if (result) {
+        results.push(result);
       }
     }
+  } else {
+    for (let i = 0; i < subdirs.length; i++) {
+      const subdir = subdirs[i];
+      const subdirPath = path.join(absoluteTargetDir, subdir);
+      const result = await executeInDirectory(subdirPath, command, args, verbose);
 
-    if (progressBar) {
-      progressBar.update(i + 1);
+      results.push({ directory: subdir, ...result });
+
+      // if (verbose) {
+      //   if (result.success) {
+      //     console.log(result.stdout);
+      //     if (result.stderr) {
+      //       console.error(result.stderr);
+      //     }
+      //   } else {
+      //     console.error(red(`Error in ${cyan(subdir)}: ${result.error}`));
+      //     if (result.stdout) {
+      //       console.log(result.stdout);
+      //     }
+      //     if (result.stderr) {
+      //       console.error(result.stderr);
+      //     }
+      //   }
+      // }
+
+      if (progressBar) {
+        progressBar.update(i + 1);
+      }
     }
   }
 

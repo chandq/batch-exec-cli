@@ -10,7 +10,7 @@ $.verbose = false;
 
 async function main() {
   const argv = minimist(process.argv.slice(2), {
-    boolean: ['v', 'verbose', 'h', 'help', 'no-progress'],
+    boolean: ['v', 'verbose', 'h', 'help', 'no-progress', 'no-parallel'],
     string: ['s', 'skip'],
     alias: {
       s: 'skip',
@@ -45,6 +45,7 @@ async function main() {
     console.log(bold('\n🚀 Batch Executor\n'));
     console.log(`Target directory: ${cyan(targetDir)}`);
     console.log(`Command: ${yellow(command)} ${args.join(' ')}`);
+    console.log(`Parallel mode: ${argv.parallel === false ? red('Disabled') : green('Enabled')}`);
     if (skipPaths.length > 0) {
       console.log(`Skipping directories: ${gray(skipPaths.join(', '))}`);
     }
@@ -55,7 +56,8 @@ async function main() {
     const results = await batchExecute(targetDir, command, args, {
       skipPaths,
       verbose: argv.verbose,
-      showProgress: argv.progress !== false
+      showProgress: argv.progress !== false,
+      parallel: argv.parallel !== false
     });
 
     printSummary(results);
@@ -67,7 +69,7 @@ async function main() {
 
 function printHelp() {
   console.log(`
-${bold('Batch Executor')} ${dim('v1.1.0')}
+${bold('Batch Executor')} ${dim('v1.3.0')}
 
 ${cyan('Usage:')} batch-exec [options] <directory> <command> [args...]
 
@@ -82,12 +84,14 @@ ${magenta('Options:')}
   -s, --skip <file>  Ignore file path (default: ./.batchexecignore)
   -v, --verbose      Show verbose output
       --no-progress  Disable progress bar
+      --no-parallel  Disable parallel execution (use sequential mode)
   -h, --help         Show this help message
 
 ${green('Examples:')}
   ${green('batch-exec')} ./my-projects git pull
   ${green('batch-exec')} ./my-projects npm update lodash -S
   ${green('batch-exec')} --skip ./custom-ignore.txt ./repos ls -la
+  ${green('batch-exec')} --no-parallel ./my-projects npm install
 `);
 }
 

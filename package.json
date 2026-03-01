@@ -1,7 +1,7 @@
 {
   "name": "batch-exec-cli",
   "version": "1.2.2",
-  "description": "Efficiently iterate through directories and execute commands with progress display",
+  "description": "Efficiently iterate through directories and execute commands with progress display and parallel execution",
   "type": "module",
   "main": "src/index.js",
   "bin": {
