@@ -3,6 +3,7 @@ import path from 'path';
 import { $, cd } from 'zx';
 import { parseIgnoreFile } from './ignoreParser.js';
 import { listDirectSubdirectories } from './directoryLister.js';
+import { cyan, red, yellow } from './utils/colors.js';
 
 export { parseIgnoreFile };
 export { listDirectSubdirectories };
@@ -20,7 +21,7 @@ export async function batchExecute(targetDir, command, args, options = {}) {
     const subdirPath = path.join(absoluteTargetDir, subdir);
     try {
       if (verbose) {
-        console.log(`=== Executing in: ${subdirPath} ===`);
+        console.log(`\n=== Executing in: ${cyan(subdirPath)} ===`);
       }
 
       let result;
@@ -56,7 +57,7 @@ export async function batchExecute(targetDir, command, args, options = {}) {
       });
 
       if (verbose) {
-        console.error(`Error in ${subdir}: ${error.message}`);
+        console.error(red(`Error in ${cyan(subdir)}: ${error.message}`));
         if (error.stdout) {
           console.log(error.stdout);
         }

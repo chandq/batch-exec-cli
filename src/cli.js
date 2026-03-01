@@ -4,6 +4,7 @@ import path from 'path';
 import minimist from 'minimist';
 import { $ } from 'zx';
 import { batchExecute, parseIgnoreFile } from './index.js';
+import { cyan, yellow, green, red, gray, bold } from './utils/colors.js';
 
 $.verbose = false;
 
@@ -26,7 +27,7 @@ async function main() {
   const [targetDir, command, ...args] = argv._;
 
   if (!targetDir || !command) {
-    console.error('Error: Missing required arguments');
+    console.error(red('Error: Missing required arguments'));
     printHelp();
     process.exit(1);
   }
@@ -41,12 +42,12 @@ async function main() {
   const skipPaths = await parseIgnoreFile(ignoreFilePath);
 
   if (argv.verbose) {
-    console.log(`Target directory: ${targetDir}`);
-    console.log(`Command: ${command} ${args.join(' ')}`);
+    console.log(`Target directory: ${cyan(targetDir)}`);
+    console.log(`Command: ${yellow(command)} ${args.join(' ')}`);
     if (skipPaths.length > 0) {
-      console.log(`Skipping directories: ${skipPaths.join(', ')}`);
+      console.log(`Skipping directories: ${gray(skipPaths.join(', '))}`);
     }
-    console.log('----------------------------------------');
+    console.log(gray('----------------------------------------'));
   }
 
   try {
@@ -57,7 +58,7 @@ async function main() {
 
     printSummary(results);
   } catch (error) {
-    console.error(`Error: ${error.message}`);
+    console.error(red(`Error: ${error.message}`));
     process.exit(1);
   }
 }
@@ -69,8 +70,8 @@ Usage: batch-exec [options] <directory> <command> [args...]
 Efficiently iterate through all direct subdirectories of a directory and execute a command.
 
 Arguments:
-  <directory>    Target directory (absolute or relative path)
-  <command>      Command to execute in each subdirectory
+  ${cyan('<directory>')}    Target directory (absolute or relative path)
+  ${yellow('<command>')}      Command to execute in each subdirectory
   [args...]      Optional arguments for the command
 
 Options:
@@ -79,9 +80,9 @@ Options:
   -h, --help         Show this help message
 
 Examples:
-  batch-exec ./my-projects git pull
-  batch-exec ./my-projects npm update lodash -S
-  batch-exec --skip ./custom-ignore.txt ./repos ls -la
+  ${green('batch-exec')} ./my-projects git pull
+  ${green('batch-exec')} ./my-projects npm update lodash -S
+  ${green('batch-exec')} --skip ./custom-ignore.txt ./repos ls -la
 `);
 }
 
@@ -90,17 +91,17 @@ function printSummary(results) {
   const failureCount = results.filter(r => !r.success).length;
 
   console.log('\n========================================');
-  console.log('Summary:');
+  console.log(bold('Summary:'));
   console.log(`  Total directories: ${results.length}`);
-  console.log(`  Successful: ${successCount}`);
-  console.log(`  Failed: ${failureCount}`);
+  console.log(`  Successful: ${green(successCount)}`);
+  console.log(`  Failed: ${failureCount > 0 ? red(failureCount) : '0'}`);
 
   if (failureCount > 0) {
     console.log('\nFailed directories:');
     results
       .filter(r => !r.success)
       .forEach(r => {
-        console.log(`  - ${r.directory}: ${r.error}`);
+        console.log(`  - ${cyan(r.directory)}: ${red(r.error)}`);
       });
   }
 
@@ -108,6 +109,6 @@ function printSummary(results) {
 }
 
 main().catch(error => {
-  console.error('Fatal error:', error);
+  console.error(red('Fatal error:'), error);
   process.exit(1);
 });
