@@ -1,4 +1,4 @@
-# batch-exec
+# batch-exec-cli
 
 高效批量命令执行工具，能够遍历目录内所有直接子目录并执行命令。
 
@@ -17,14 +17,14 @@
 ## 安装
 
 ```bash
-npm install -g batch-exec
+npm install -g batch-exec-cli
 ```
 
 或者克隆项目后本地安装：
 
 ```bash
 git clone <repository-url>
-cd batch-exec
+cd batch-exec-cli
 npm install
 npm link
 ```
@@ -128,7 +128,7 @@ temp-*
 你也可以作为库使用：
 
 ```javascript
-import { batchExecute } from 'batch-exec';
+import { batchExecute } from 'batch-exec-cli';
 
 const results = await batchExecute('./my-projects', 'git', ['pull'], {
   verbose: false,
