@@ -20,6 +20,10 @@
     "progress",
     "cli"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chandq/batch-exec.git"
+  },
   "author": "",
   "license": "MIT",
   "dependencies": {
