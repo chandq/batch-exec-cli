@@ -11,6 +11,9 @@
     "test": "echo 'Tests require Node.js >= 18.0.0 with --test support'",
     "lint": "eslint src/ test/"
   },
+  "files": [
+    "src"
+  ],
   "keywords": [
     "batch-exec",
     "batchexec",
