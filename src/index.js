@@ -1,27 +1,34 @@
-import fs from 'fs/promises';
 import path from 'path';
 import { $, cd } from 'zx';
 import { parseIgnoreFile } from './ignoreParser.js';
 import { listDirectSubdirectories } from './directoryLister.js';
-import { cyan, red, yellow } from './utils/colors.js';
+import { cyan, red, ProgressBar, clearLine } from './utils/colors.js';
 
 export { parseIgnoreFile };
 export { listDirectSubdirectories };
 
 export async function batchExecute(targetDir, command, args, options = {}) {
-  const { skipPaths = [], verbose = false } = options;
+  const { skipPaths = [], verbose = false, showProgress = true } = options;
 
   const absoluteTargetDir = path.resolve(targetDir);
 
   const subdirs = await listDirectSubdirectories(absoluteTargetDir, skipPaths);
 
   const results = [];
+  let progressBar = null;
 
-  for (const subdir of subdirs) {
+  if (showProgress && subdirs.length > 0) {
+    progressBar = new ProgressBar(subdirs.length);
+    progressBar.start();
+  }
+
+  for (let i = 0; i < subdirs.length; i++) {
+    const subdir = subdirs[i];
     const subdirPath = path.join(absoluteTargetDir, subdir);
+
     try {
       if (verbose) {
-        console.log(`\n=== Executing in: ${cyan(subdirPath)} ===`);
+        console.log(`=== Executing in: ${cyan(subdirPath)} ===`);
       }
 
       let result;
@@ -66,6 +73,16 @@ export async function batchExecute(targetDir, command, args, options = {}) {
         }
       }
     }
+
+    if (progressBar) {
+      progressBar.update(i + 1);
+    }
+  }
+
+  if (progressBar) {
+    progressBar.stop();
+  } else if (!verbose) {
+    clearLine();
   }
 
   return results;

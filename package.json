@@ -1,7 +1,7 @@
 {
   "name": "batch-exec",
-  "version": "1.0.0",
-  "description": "Efficiently iterate through directories and execute commands",
+  "version": "1.1.0",
+  "description": "Efficiently iterate through directories and execute commands with progress display",
   "type": "module",
   "main": "src/index.js",
   "bin": {
@@ -16,12 +16,14 @@
     "execute",
     "command",
     "directory",
-    "zx"
+    "zx",
+    "progress",
+    "cli"
   ],
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "zx": "^7.2.3",
+    "zx": "^8.1.0",
     "minimist": "^1.2.8"
   },
   "devDependencies": {

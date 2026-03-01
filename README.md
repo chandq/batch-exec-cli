@@ -11,6 +11,8 @@
 - 🔧 跨平台支持（Windows、macOS、Linux）
 - 💬 详细的 verbose 输出模式
 - 🎨 彩色高亮输出，便于识别目录路径和命令
+- ⏳ 实时进度条显示，带旋转动画和执行时间
+- ✨ 精美的输出格式和摘要展示
 
 ## Node.js 版本要求
 
@@ -28,7 +30,7 @@
 
 3. **zx 库依赖**：
 
-   - zx 7.x 版本要求 Node.js 16+
+   - zx 8.x 版本要求 Node.js 16+
    - zx 提供了强大的 shell 脚本能力，是本工具的核心依赖
 
 4. **现代 JavaScript 特性**：
@@ -91,6 +93,7 @@ batch-exec ./repos ls -la
 | ------------------- | ---- | ---------------------------------------------- |
 | `-s, --skip <文件>` |      | 指定忽略文件路径（默认：`./.batchexecignore`） |
 | `-v, --verbose`     |      | 显示详细输出                                   |
+| `--no-progress`     |      | 禁用进度条显示                                 |
 | `-h, --help`        |      | 显示帮助信息                                   |
 
 ### 使用自定义忽略文件
@@ -99,119 +102,72 @@ batch-exec ./repos ls -la
 batch-exec --skip ./custom-ignore.txt ./repos git status
 ```
 
-### 详细输出模式
+### 禁用进度条
 
 ```bash
-batch-exec -v ./my-projects npm install
+batch-exec --no-progress ./my-projects npm install
 ```
 
-## 忽略文件
-
-默认情况下，`batch-exec` 会读取当前执行目录下的 `.batchexecignore` 文件。该文件支持 `.gitignore` 风格的语法：
+### 显示详细输出
 
 ```bash
-# 注释
+batch-exec -v ./my-projects git status
+```
+
+## 输出示例
+
+### 普通模式（带进度条）
+
+```
+⠋ [████████████████████████████░░] 85% (17/20) [5s]
+```
+
+### 摘要展示
+
+```
+═══════════════════════════════════════════════════════════════
+📊 Execution Summary
+═══════════════════════════════════════════════════════════════
+  Total directories: 20
+  Successful:        18
+  Failed:            2
+
+❌ Failed directories:
+  • project1: Error: Command failed
+  • project3: Error: Permission denied
+═══════════════════════════════════════════════════════════════
+```
+
+## .batchexecignore 文件格式
+
+与 `.gitignore` 文件格式完全相同：
+
+```
 node_modules
-dist/
+dist
 build
+.git
+.idea
+.vscode
 *.tmp
-test-*
+temp-*
 ```
-
-### 忽略规则
-
-- `#` 开头的行为注释
-- 支持通配符 `*` 和 `?`
-- 以 `/` 结尾的模式只匹配目录
-- 空行会被忽略
 
 ## API 使用
 
-除了作为 CLI 工具使用外，你也可以在代码中直接使用：
+你也可以作为库使用：
 
 ```javascript
-import { batchExecute, parseIgnoreFile, listDirectSubdirectories } from 'batch-exec';
+import { batchExecute } from 'batch-exec';
 
-// 批量执行命令
 const results = await batchExecute('./my-projects', 'git', ['pull'], {
-  skipPaths: ['node_modules'],
-  verbose: true
+  verbose: false,
+  showProgress: true
 });
 
-// 解析忽略文件
-const patterns = await parseIgnoreFile('./.batchexecignore');
-
-// 列出直接子目录
-const subdirs = await listDirectSubdirectories('./my-projects', patterns);
-```
-
-### batchExecute(targetDir, command, args, options)
-
-在目标目录的所有直接子目录中执行命令。
-
-**参数：**
-
-- `targetDir` (string): 目标目录路径
-- `command` (string): 要执行的命令
-- `args` (string[]): 命令参数数组
-- `options` (object): 可选配置
-  - `skipPaths` (string[]): 要跳过的目录模式数组
-  - `verbose` (boolean): 是否显示详细输出
-
-**返回值：**
-返回结果数组，每个结果包含：
-
-- `directory` (string): 目录名
-- `success` (boolean): 是否成功
-- `stdout` (string): 标准输出
-- `stderr` (string): 标准错误
-- `error` (string, 可选): 错误信息（如果失败）
-
-## 开发
-
-### 安装依赖
-
-```bash
-npm install
-```
-
-### 运行测试
-
-**注意：** 测试需要 Node.js >= 18.0.0
-
-```bash
-npm test
-```
-
-### 代码检查
-
-```bash
-npm run lint
-```
-
-## 项目结构
-
-```
-batch-exec/
-├── src/
-│   ├── index.js          # 主模块和导出
-│   ├── cli.js            # 命令行入口
-│   ├── ignoreParser.js   # 忽略文件解析
-│   └── directoryLister.js # 目录列表
-├── test/
-│   ├── ignoreParser.test.js
-│   ├── directoryLister.test.js
-│   ├── index.test.js
-│   └── cli.test.js
-├── package.json
-├── README.md
-└── .batchexecignore
+console.log(results);
 ```
 
 ## 许可证
 
 MIT
-
-## 贡献
-
-欢迎提交 Issue 和 Pull Request！

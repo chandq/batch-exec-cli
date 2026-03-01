@@ -4,13 +4,13 @@ import path from 'path';
 import minimist from 'minimist';
 import { $ } from 'zx';
 import { batchExecute, parseIgnoreFile } from './index.js';
-import { cyan, yellow, green, red, gray, bold } from './utils/colors.js';
+import { cyan, yellow, green, red, gray, bold, dim, magenta, blue } from './utils/colors.js';
 
 $.verbose = false;
 
 async function main() {
   const argv = minimist(process.argv.slice(2), {
-    boolean: ['v', 'verbose', 'h', 'help'],
+    boolean: ['v', 'verbose', 'h', 'help', 'no-progress'],
     string: ['s', 'skip'],
     alias: {
       s: 'skip',
@@ -42,44 +42,49 @@ async function main() {
   const skipPaths = await parseIgnoreFile(ignoreFilePath);
 
   if (argv.verbose) {
+    console.log(bold('\n🚀 Batch Executor\n'));
     console.log(`Target directory: ${cyan(targetDir)}`);
     console.log(`Command: ${yellow(command)} ${args.join(' ')}`);
     if (skipPaths.length > 0) {
       console.log(`Skipping directories: ${gray(skipPaths.join(', '))}`);
     }
-    console.log(gray('----------------------------------------'));
+    console.log(gray('----------------------------------------\n'));
   }
 
   try {
     const results = await batchExecute(targetDir, command, args, {
       skipPaths,
-      verbose: argv.verbose
+      verbose: argv.verbose,
+      showProgress: argv.progress !== false
     });
 
     printSummary(results);
   } catch (error) {
-    console.error(red(`Error: ${error.message}`));
+    console.error(red(`\nError: ${error.message}\n`));
     process.exit(1);
   }
 }
 
 function printHelp() {
   console.log(`
-Usage: batch-exec [options] <directory> <command> [args...]
+${bold('Batch Executor')} ${dim('v1.1.0')}
+
+${cyan('Usage:')} batch-exec [options] <directory> <command> [args...]
 
 Efficiently iterate through all direct subdirectories of a directory and execute a command.
 
-Arguments:
+${blue('Arguments:')}
   ${cyan('<directory>')}    Target directory (absolute or relative path)
   ${yellow('<command>')}      Command to execute in each subdirectory
   [args...]      Optional arguments for the command
 
-Options:
+${magenta('Options:')}
   -s, --skip <file>  Ignore file path (default: ./.batchexecignore)
   -v, --verbose      Show verbose output
+      --no-progress  Disable progress bar
   -h, --help         Show this help message
 
-Examples:
+${green('Examples:')}
   ${green('batch-exec')} ./my-projects git pull
   ${green('batch-exec')} ./my-projects npm update lodash -S
   ${green('batch-exec')} --skip ./custom-ignore.txt ./repos ls -la
@@ -90,22 +95,27 @@ function printSummary(results) {
   const successCount = results.filter(r => r.success).length;
   const failureCount = results.filter(r => !r.success).length;
 
-  console.log('\n========================================');
-  console.log(bold('Summary:'));
-  console.log(`  Total directories: ${results.length}`);
-  console.log(`  Successful: ${green(successCount)}`);
-  console.log(`  Failed: ${failureCount > 0 ? red(failureCount) : '0'}`);
+  console.log(bold('\n═══════════════════════════════════════════════════════════════'));
+  console.log(bold('📊 Execution Summary'));
+  console.log('═══════════════════════════════════════════════════════════════');
+  console.log(`  Total directories: ${bold(results.length.toString())}`);
+  console.log(`  Successful:        ${green(bold(successCount.toString()))}`);
+  console.log(`  Failed:            ${failureCount > 0 ? red(bold(failureCount.toString())) : '0'}`);
 
   if (failureCount > 0) {
-    console.log('\nFailed directories:');
+    console.log('\n' + red(bold('❌ Failed directories:')));
     results
       .filter(r => !r.success)
       .forEach(r => {
-        console.log(`  - ${cyan(r.directory)}: ${red(r.error)}`);
+        console.log(`  ${cyan('•')} ${cyan(r.directory)}: ${red(r.error)}`);
       });
   }
 
-  console.log('========================================\n');
+  if (successCount > 0 && failureCount === 0) {
+    console.log('\n' + green(bold('✅ All operations completed successfully!')));
+  }
+
+  console.log('═══════════════════════════════════════════════════════════════\n');
 }
 
 main().catch(error => {
