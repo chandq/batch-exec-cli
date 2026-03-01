@@ -12,6 +12,9 @@
     "lint": "eslint src/ test/"
   },
   "keywords": [
+    "batch-exec",
+    "batchexec",
+    "batch-exec-cli",
     "batch",
     "execute",
     "command",
