@@ -30,7 +30,7 @@
     "type": "git",
     "url": "git+https://github.com/chandq/batch-exec.git"
   },
-  "author": "",
+  "author": "chandq",
   "license": "MIT",
   "dependencies": {
     "minimist": "^1.2.8",
