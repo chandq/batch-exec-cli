@@ -1,10 +1,14 @@
 #!/usr/bin/env node
 
+import { createRequire } from 'module';
 import path from 'path';
 import minimist from 'minimist';
 import { $ } from 'zx';
 import { batchExecute, parseIgnoreFile } from './index.js';
 import { cyan, yellow, green, red, gray, bold, dim, magenta, blue } from './utils/colors.js';
+
+const require = createRequire(import.meta.url);
+const { version } = require('../package.json');
 
 $.verbose = false;
 
@@ -68,7 +72,7 @@ async function main() {
 
 function printHelp() {
   console.log(`
-${bold('Batch Executor')} ${dim('v1.3.0')}
+${bold('Batch Executor')} ${dim(`v${version}`)}
 
 ${cyan('Usage:')} batch-exec [options] <directory> <command> [args...]
 
