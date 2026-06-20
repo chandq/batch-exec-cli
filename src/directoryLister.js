@@ -4,7 +4,6 @@ import { shouldSkipDirectory } from './ignoreParser.js';
 
 export async function listDirectSubdirectories(targetDir, skipPatterns = []) {
   const absoluteTargetDir = path.resolve(targetDir);
-
   try {
     const entries = await fs.readdir(absoluteTargetDir, { withFileTypes: true });
     const subdirs = [];
