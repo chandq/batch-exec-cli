@@ -8,7 +8,7 @@ export async function parseIgnoreFile(ignoreFilePath) {
 
   try {
     const content = await fs.readFile(ignoreFilePath, 'utf-8');
-    const lines = content.split('\n');
+    const lines = content.split(/\r?\n/);
 
     return lines
       .map(line => line.trim())

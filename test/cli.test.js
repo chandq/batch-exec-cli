@@ -9,6 +9,10 @@ function stripAnsi(str) {
   return str.replace(/\x1b\[[0-9;]*m/g, '');
 }
 
+function toPosixPath(p) {
+  return p.replace(/\\/g, '/');
+}
+
 describe('CLI Integration', () => {
   let tempDir;
   let testProjectsDir;
@@ -30,46 +34,53 @@ describe('CLI Integration', () => {
   });
 
   it('should show help message with --help', async () => {
-    const result = await $`node ${path.join(process.cwd(), 'src/cli.js')} --help`;
+    const cliPath = toPosixPath(path.join(process.cwd(), 'src/cli.js'));
+    const result = await $`node ${cliPath} --help`;
     assert(result.stdout.includes('Usage:'));
     assert(result.stdout.includes('batch-exec'));
   });
 
   it('should execute command in subdirectories', async () => {
-    const result = await $`node ${path.join(process.cwd(), 'src/cli.js')} ${testProjectsDir} echo test`;
+    const cliPath = toPosixPath(path.join(process.cwd(), 'src/cli.js'));
+    const targetDir = toPosixPath(testProjectsDir);
+    const result = await $`node ${cliPath} ${targetDir} echo test`;
     const output = stripAnsi(result.stdout);
     assert(output.includes('Execution Summary'));
     assert(output.includes('Total directories: 2'));
   });
 
   it('should respect .batchexecignore file', async () => {
-    const result = await $`node ${path.join(process.cwd(), 'src/cli.js')} ${testProjectsDir} pwd`;
+    const cliPath = toPosixPath(path.join(process.cwd(), 'src/cli.js'));
+    const targetDir = toPosixPath(testProjectsDir);
+    const result = await $`node ${cliPath} ${targetDir} pwd`;
     const output = stripAnsi(result.stdout);
     assert(output.includes('Total directories: 2'));
     assert(!output.includes('node_modules'));
   });
 
   it('should work with custom ignore file using --skip', async () => {
-    const customIgnore = path.join(tempDir, 'custom-ignore');
+    const cliPath = toPosixPath(path.join(process.cwd(), 'src/cli.js'));
+    const customIgnore = toPosixPath(path.join(tempDir, 'custom-ignore'));
     await fs.writeFile(customIgnore, 'project1\nnode_modules');
 
-    const result = await $`node ${path.join(
-      process.cwd(),
-      'src/cli.js'
-    )} --skip ${customIgnore} ${testProjectsDir} pwd`;
+    const targetDir = toPosixPath(testProjectsDir);
+    const result = await $`node ${cliPath} --skip ${customIgnore} ${targetDir} pwd`;
     const output = stripAnsi(result.stdout);
     assert(output.includes('Total directories: 1'));
     assert(!output.includes('project1'));
   });
 
   it('should show verbose output with --verbose', async () => {
-    const result = await $`node ${path.join(process.cwd(), 'src/cli.js')} --verbose ${testProjectsDir} echo hello`;
+    const cliPath = toPosixPath(path.join(process.cwd(), 'src/cli.js'));
+    const targetDir = toPosixPath(testProjectsDir);
+    const result = await $`node ${cliPath} --verbose ${targetDir} echo hello`;
     assert(result.stdout.includes('Target directory:'));
     assert(result.stdout.includes('Command:'));
   });
 
   it('should fail with error message when missing arguments', async () => {
-    await assert.rejects($`node ${path.join(process.cwd(), 'src/cli.js')}`, error => {
+    const cliPath = toPosixPath(path.join(process.cwd(), 'src/cli.js'));
+    await assert.rejects($`node ${cliPath}`, error => {
       assert(error.stderr.includes('Missing required arguments'));
       return true;
     });
