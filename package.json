@@ -8,6 +8,7 @@
     "batch-exec": "src/cli.js"
   },
   "scripts": {
+    "test": "node --test",
     "lint": "eslint src/ test/"
   },
   "files": [

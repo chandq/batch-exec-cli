@@ -5,6 +5,10 @@ import path from 'path';
 import os from 'os';
 import { $ } from 'zx';
 
+function stripAnsi(str) {
+  return str.replace(/\x1b\[[0-9;]*m/g, '');
+}
+
 describe('CLI Integration', () => {
   let tempDir;
   let testProjectsDir;
@@ -33,14 +37,16 @@ describe('CLI Integration', () => {
 
   it('should execute command in subdirectories', async () => {
     const result = await $`node ${path.join(process.cwd(), 'src/cli.js')} ${testProjectsDir} echo test`;
-    assert(result.stdout.includes('Summary:'));
-    assert(result.stdout.includes('Total directories: 2'));
+    const output = stripAnsi(result.stdout);
+    assert(output.includes('Execution Summary'));
+    assert(output.includes('Total directories: 2'));
   });
 
   it('should respect .batchexecignore file', async () => {
     const result = await $`node ${path.join(process.cwd(), 'src/cli.js')} ${testProjectsDir} pwd`;
-    assert(result.stdout.includes('Total directories: 2'));
-    assert(!result.stdout.includes('node_modules'));
+    const output = stripAnsi(result.stdout);
+    assert(output.includes('Total directories: 2'));
+    assert(!output.includes('node_modules'));
   });
 
   it('should work with custom ignore file using --skip', async () => {
@@ -51,8 +57,9 @@ describe('CLI Integration', () => {
       process.cwd(),
       'src/cli.js'
     )} --skip ${customIgnore} ${testProjectsDir} pwd`;
-    assert(result.stdout.includes('Total directories: 1'));
-    assert(!result.stdout.includes('project1'));
+    const output = stripAnsi(result.stdout);
+    assert(output.includes('Total directories: 1'));
+    assert(!output.includes('project1'));
   });
 
   it('should show verbose output with --verbose', async () => {
