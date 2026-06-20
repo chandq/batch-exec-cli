@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.3.4](https://github.com/chandq/batch-exec-cli/compare/v1.3.3...v1.3.4) (2026-06-20)
+
+
+### Bug Fixes
+
+* compatible with unix and windows ([a814257](https://github.com/chandq/batch-exec-cli/commit/a8142575563ed7128234c92a514fa713d69c0e62))
+* dynamic read and print version info. ([01a4eda](https://github.com/chandq/batch-exec-cli/commit/01a4eda95e349106497b951217cbeaa583cb9746))
+
 ### [1.3.3](https://github.com/chandq/batch-exec-cli/compare/v1.3.2...v1.3.3) (2026-06-20)
 
 ### [1.3.2](https://github.com/chandq/batch-exec/compare/v1.3.0...v1.3.2) (2026-06-20)
