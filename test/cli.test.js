@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 import { $ } from 'zx';
+import { safeRm } from './helpers.js';
 
 function stripAnsi(str) {
   return str.replace(/\x1b\[[0-9;]*m/g, '');
@@ -30,7 +31,7 @@ describe('CLI Integration', () => {
   });
 
   afterEach(async () => {
-    await fs.rm(tempDir, { recursive: true, force: true });
+    await safeRm(tempDir);
   });
 
   it('should show help message with --help', async () => {

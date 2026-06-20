@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 import { listDirectSubdirectories } from '../src/directoryLister.js';
+import { safeRm } from './helpers.js';
 
 describe('directoryLister', () => {
   let tempDir;
@@ -21,7 +22,7 @@ describe('directoryLister', () => {
   });
 
   afterEach(async () => {
-    await fs.rm(tempDir, { recursive: true, force: true });
+    await safeRm(tempDir);
   });
 
   describe('listDirectSubdirectories', () => {

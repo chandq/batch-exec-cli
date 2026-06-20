@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 import { parseIgnoreFile, shouldSkipDirectory } from '../src/ignoreParser.js';
+import { safeRm } from './helpers.js';
 
 describe('ignoreParser', () => {
   let tempDir;
@@ -13,7 +14,7 @@ describe('ignoreParser', () => {
   });
 
   afterEach(async () => {
-    await fs.rm(tempDir, { recursive: true, force: true });
+    await safeRm(tempDir);
   });
 
   describe('parseIgnoreFile', () => {

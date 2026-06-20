@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 import { batchExecute } from '../src/index.js';
+import { safeRm } from './helpers.js';
 
 describe('batchExecute', () => {
   let tempDir;
@@ -17,7 +18,7 @@ describe('batchExecute', () => {
   });
 
   afterEach(async () => {
-    await fs.rm(tempDir, { recursive: true, force: true });
+    await safeRm(tempDir);
   });
 
   it('should execute command in all subdirectories', async () => {
