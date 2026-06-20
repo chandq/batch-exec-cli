@@ -8,6 +8,7 @@ on:
     branches: [main]
     paths:
       - 'src/**' # 仅当 src 目录下的文件变化时触发
+      - 'test/**' # 当 test 目录下的文件变化时触发
 
 jobs:
   unit-test:
