@@ -2,6 +2,9 @@
 
 高效批量命令执行工具，能够遍历目录内所有直接子目录并执行命令。
 
+[![release status](https://github.com/chandq/batch-exec-cli/actions/workflows/release.yml/badge.svg)](https://github.com/chandq/batch-exec-cli/actions/workflows/release.yml)
+[![batch-exec-cli](https://img.shields.io/github/package-json/v/chandq/batch-exec-cli?style=flat-square)](https://www.npmjs.com/package/batch-exec-cli)
+
 ## 功能特性
 
 - 🚀 高效遍历目标目录的所有直接子目录, 默认并行执行

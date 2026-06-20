@@ -40,7 +40,6 @@ async function main() {
   }
 
   const skipPaths = await parseIgnoreFile(ignoreFilePath);
-
   if (argv.verbose) {
     console.log(bold('\n🚀 Batch Executor\n'));
     console.log(`Target directory: ${cyan(targetDir)}`);
