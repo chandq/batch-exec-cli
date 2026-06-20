@@ -7,7 +7,6 @@ export async function listDirectSubdirectories(targetDir, skipPatterns = []) {
 
   try {
     const entries = await fs.readdir(absoluteTargetDir, { withFileTypes: true });
-
     const subdirs = [];
 
     for (const entry of entries) {
