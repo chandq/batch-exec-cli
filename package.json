@@ -9,6 +9,7 @@
   },
   "scripts": {
     "test": "node --test",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-include='src/**' --test-coverage-exclude='test/**'",
     "lint": "eslint src/ test/"
   },
   "files": [
