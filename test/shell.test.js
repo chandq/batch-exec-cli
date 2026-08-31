@@ -8,7 +8,7 @@ describe('shell configuration', () => {
     const config = resolveShell('bash');
 
     assert.strictEqual(config.syntax, 'posix');
-    assert.strictEqual(path.basename(config.executable).toLowerCase(), 'bash');
+    assert.strictEqual(path.basename(config.executable).toLowerCase().replace(/\.exe$/, ''), 'bash');
     assert.strictEqual(config.prefix, 'set -euo pipefail;');
   });
 

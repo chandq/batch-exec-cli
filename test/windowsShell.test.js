@@ -10,10 +10,12 @@ import { safeRm } from './helpers.js';
 describe('Windows shell integration', { skip: process.platform !== 'win32' }, () => {
   let tempDir;
   let scriptPath;
+  let shellScriptPath;
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'batch-exec-windows-shell-'));
     scriptPath = path.join(tempDir, 'print-cwd.mjs');
+    shellScriptPath = scriptPath.replace(/\\/g, '/');
 
     await Promise.all([
       fs.mkdir(path.join(tempDir, 'project1')),
@@ -30,7 +32,7 @@ describe('Windows shell integration', { skip: process.platform !== 'win32' }, ()
     for (const shell of ['bash', 'cmd', 'powershell', 'pwsh', 'system']) {
       assert.doesNotThrow(() => resolveShell(shell), `Expected ${shell} to be available`);
 
-      const results = await batchExecute(tempDir, process.execPath, [scriptPath], {
+      const results = await batchExecute(tempDir, 'node', [shellScriptPath], {
         shell,
         showProgress: false,
         parallel: false
@@ -48,7 +50,7 @@ describe('Windows shell integration', { skip: process.platform !== 'win32' }, ()
     await fs.writeFile(failScriptPath, "console.log('failure detail'); process.exit(7);\n");
 
     for (const shell of ['bash', 'cmd', 'powershell', 'pwsh', 'system']) {
-      const results = await batchExecute(tempDir, process.execPath, [failScriptPath], {
+      const results = await batchExecute(tempDir, 'node', [failScriptPath.replace(/\\/g, '/')], {
         shell,
         showProgress: false,
         parallel: false

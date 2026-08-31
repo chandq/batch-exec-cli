@@ -95,7 +95,7 @@ describe('CLI Integration', () => {
     await fs.writeFile(failScript, "console.log('stdout failure detail'); process.exit(3);\n");
 
     const targetDir = toPosixPath(testProjectsDir);
-    const result = await $`node ${cliPath} --shell bash --no-progress ${targetDir} ${process.execPath} ${toPosixPath(failScript)}`;
+    const result = await $`node ${cliPath} --shell bash --no-progress ${targetDir} node ${toPosixPath(failScript)}`;
     const output = stripAnsi(result.stdout);
 
     assert(output.includes('Failed directories:'));
