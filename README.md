@@ -99,7 +99,7 @@ batch-exec --shell cmd ./my-projects echo hello
 batch-exec --shell /bin/zsh ./my-projects npm test
 ```
 
-Shell 参数只切换命令解释器，命令仍以非交互方式执行并捕获标准输出和错误输出。
+Shell 参数只切换命令解释器，命令仍以非交互方式执行并捕获标准输出和错误输出。CLI 普通模式会在进度完成后按目录打印成功命令的输出；库 API 则通过返回值提供这些内容。
 
 ### 显示详细输出
 

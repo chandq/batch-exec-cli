@@ -51,6 +51,17 @@ describe('CLI Integration', () => {
     assert(output.includes('Total directories: 2'));
   });
 
+  it('should print successful command stdout in normal mode', async () => {
+    const cliPath = toPosixPath(path.join(process.cwd(), 'src/cli.js'));
+    const targetDir = toPosixPath(testProjectsDir);
+    const result = await $`node ${cliPath} --no-progress --no-parallel ${targetDir} echo visible-output`;
+    const output = stripAnsi(result.stdout);
+
+    assert(output.includes('visible-output'));
+    assert(output.includes('=== project1 ==='));
+    assert(output.includes('=== project2 ==='));
+  });
+
   it('should respect .batchexecignore file', async () => {
     const cliPath = toPosixPath(path.join(process.cwd(), 'src/cli.js'));
     const targetDir = toPosixPath(testProjectsDir);
@@ -87,6 +98,26 @@ describe('CLI Integration', () => {
 
     assert(result.stdout.includes('Shell:'));
     assert(result.stdout.includes('bash'));
+  });
+
+  it('should print stdout in normal mode when --shell bash is selected', async () => {
+    const cliPath = toPosixPath(path.join(process.cwd(), 'src/cli.js'));
+    const targetDir = toPosixPath(testProjectsDir);
+    const result = await $`node ${cliPath} --shell bash --no-progress --no-parallel ${targetDir} echo shell-output`;
+    const output = stripAnsi(result.stdout);
+
+    assert(output.includes('shell-output'));
+    assert(output.includes('=== project1 ==='));
+    assert(output.includes('=== project2 ==='));
+  });
+
+  it('should preserve command flags after the target directory', async () => {
+    const cliPath = toPosixPath(path.join(process.cwd(), 'src/cli.js'));
+    const targetDir = toPosixPath(testProjectsDir);
+    const result = await $`node ${cliPath} --shell bash --no-progress --no-parallel ${targetDir} echo -g`;
+    const output = stripAnsi(result.stdout);
+
+    assert(output.includes('-g'));
   });
 
   it('should show captured stdout when a bash command fails', async () => {

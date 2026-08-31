@@ -15,6 +15,9 @@ $.verbose = false;
 
 async function main() {
   const argv = minimist(process.argv.slice(2), {
+    // Everything after the target directory belongs to the command. This is
+    // required for command flags such as `npm ls -g`.
+    stopEarly: true,
     boolean: ['v', 'verbose', 'h', 'help', 'no-progress', 'no-parallel'],
     string: ['s', 'skip', 'shell'],
     alias: {
@@ -74,6 +77,9 @@ async function main() {
       shell: argv.shell
     });
 
+    if (!argv.verbose) {
+      printCommandOutputs(results);
+    }
     printSummary(results);
   } catch (error) {
     console.error(red(`\nError: ${error.message}\n`));
@@ -88,6 +94,7 @@ ${bold('Batch Executor')} ${dim(`v${version}`)}
 ${cyan('Usage:')} batch-exec [options] <directory> <command> [args...]
 
 Efficiently iterate through all direct subdirectories of a directory and execute a command.
+Options should be placed before <directory>; all arguments after <directory> are passed to the command unchanged.
 
 ${blue('Arguments:')}
   ${cyan('<directory>')}    Target directory (absolute or relative path)
@@ -109,6 +116,22 @@ ${green('Examples:')}
   ${green('batch-exec')} --no-parallel ./my-projects npm install
   ${green('batch-exec')} --shell powershell ./my-projects git status
 `);
+}
+
+function printCommandOutputs(results) {
+  results
+    .filter(result => result.success && (result.stdout || result.stderr))
+    .forEach(result => {
+      console.log(`\n=== ${cyan(result.directory)} ===`);
+      if (result.stdout) {
+        process.stdout.write(result.stdout);
+        if (!result.stdout.endsWith('\n')) process.stdout.write('\n');
+      }
+      if (result.stderr) {
+        process.stderr.write(result.stderr);
+        if (!result.stderr.endsWith('\n')) process.stderr.write('\n');
+      }
+    });
 }
 
 function printSummary(results) {
