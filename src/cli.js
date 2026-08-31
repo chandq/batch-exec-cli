@@ -5,6 +5,7 @@ import path from 'path';
 import minimist from 'minimist';
 import { $ } from 'zx';
 import { batchExecute, parseIgnoreFile } from './index.js';
+import { resolveShell, shellDisplayName } from './shell.js';
 import { cyan, yellow, green, red, gray, bold, dim, magenta, blue } from './utils/colors.js';
 
 const require = createRequire(import.meta.url);
@@ -15,7 +16,7 @@ $.verbose = false;
 async function main() {
   const argv = minimist(process.argv.slice(2), {
     boolean: ['v', 'verbose', 'h', 'help', 'no-progress', 'no-parallel'],
-    string: ['s', 'skip'],
+    string: ['s', 'skip', 'shell'],
     alias: {
       s: 'skip',
       v: 'verbose',
@@ -44,11 +45,20 @@ async function main() {
   }
 
   const skipPaths = await parseIgnoreFile(ignoreFilePath);
+  let shellConfig;
+  try {
+    shellConfig = resolveShell(argv.shell);
+  } catch (error) {
+    console.error(red(`\nError: ${error.message}\n`));
+    process.exit(1);
+  }
+
   if (argv.verbose) {
     console.log(bold('\n🚀 Batch Executor\n'));
     console.log(`Target directory: ${cyan(targetDir)}`);
     console.log(`Command: ${yellow(command)} ${args.join(' ')}`);
     console.log(`Parallel mode: ${argv.parallel === false ? red('Disabled') : green('Enabled')}`);
+    console.log(`Shell: ${cyan(shellDisplayName(shellConfig, $.shell))}`);
     if (skipPaths.length > 0) {
       console.log(`Skipping directories: ${gray(skipPaths.join(', '))}`);
     }
@@ -60,7 +70,8 @@ async function main() {
       skipPaths,
       verbose: argv.verbose,
       showProgress: argv.progress !== false,
-      parallel: argv.parallel !== false
+      parallel: argv.parallel !== false,
+      shell: argv.shell
     });
 
     printSummary(results);
@@ -85,6 +96,7 @@ ${blue('Arguments:')}
 
 ${magenta('Options:')}
   -s, --skip <file>  Ignore file path (default: ./.batchexecignore)
+      --shell <name-or-path>  Shell to use: system, bash, cmd, powershell, pwsh, or a path
   -v, --verbose      Show verbose output
       --no-progress  Disable progress bar
       --no-parallel  Disable parallel execution (use sequential mode)
@@ -95,6 +107,7 @@ ${green('Examples:')}
   ${green('batch-exec')} ./my-projects npm update lodash -S
   ${green('batch-exec')} --skip ./custom-ignore.txt ./repos ls -la
   ${green('batch-exec')} --no-parallel ./my-projects npm install
+  ${green('batch-exec')} --shell powershell ./my-projects git status
 `);
 }
 
@@ -114,7 +127,15 @@ function printSummary(results) {
     results
       .filter(r => !r.success)
       .forEach(r => {
-        console.log(`  ${cyan('•')} ${cyan(r.directory)}: ${red(r.error)}`);
+        const errorMessage = r.error || 'Command failed';
+        console.log(`  ${cyan('•')} ${cyan(r.directory)}: ${red(errorMessage)}`);
+
+        const capturedOutput = [r.stdout, r.stderr]
+          .filter(output => output && !errorMessage.includes(output.trim()))
+          .join('');
+        if (capturedOutput) {
+          console.log(gray(`    Output:\n${capturedOutput.trimEnd()}`));
+        }
       });
   }
 

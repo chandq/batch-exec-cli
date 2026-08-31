@@ -35,6 +35,11 @@ jobs:
       - name: Test
         run: npm test --if-present
 
+      - name: Verify Windows shell modes
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: node --test test/windowsShell.test.js
+
       - name: Build
         run: npm run build --if-present
 

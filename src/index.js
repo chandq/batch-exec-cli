@@ -2,12 +2,13 @@ import path from 'path';
 import { $, within, cd } from 'zx';
 import { parseIgnoreFile } from './ignoreParser.js';
 import { listDirectSubdirectories } from './directoryLister.js';
+import { resolveShell } from './shell.js';
 import { cyan, red, ProgressBar, clearLine } from './utils/colors.js';
 
 export { parseIgnoreFile };
 export { listDirectSubdirectories };
 
-async function executeInDirectory(subdirPath, command, args, verbose) {
+async function executeInDirectory(subdirPath, command, args, verbose, shellConfig) {
   try {
     if (verbose) {
       console.log(`=== Executing in: ${cyan(subdirPath)} ===`);
@@ -17,10 +18,21 @@ async function executeInDirectory(subdirPath, command, args, verbose) {
 
     await within(async () => {
       cd(subdirPath);
+      // Create the configured zx executor after cd(): zx captures the current
+      // AsyncLocalStorage cwd when a local executor is created.
+      const execute = shellConfig
+        ? $({
+            shell: shellConfig.executable,
+            prefix: shellConfig.prefix,
+            postfix: shellConfig.postfix,
+            quote: shellConfig.quote
+          })
+        : $;
+
       if (verbose) {
-        result = await $`${command} ${args}`;
+        result = await execute`${command} ${args}`;
       } else {
-        result = await $`${command} ${args}`.quiet();
+        result = await execute`${command} ${args}`.quiet();
       }
       if (verbose) {
         console.log(`${cyan(subdirPath)}: `, result.stdout);
@@ -55,7 +67,15 @@ async function executeInDirectory(subdirPath, command, args, verbose) {
 }
 
 export async function batchExecute(targetDir, command, args, options = {}) {
-  const { skipPaths = [], verbose = false, showProgress = true, parallel = true } = options;
+  const {
+    skipPaths = [],
+    verbose = false,
+    showProgress = true,
+    parallel = true,
+    shell: shellOption
+  } = options;
+
+  const shellConfig = resolveShell(shellOption);
 
   const absoluteTargetDir = path.resolve(targetDir);
 
@@ -72,7 +92,7 @@ export async function batchExecute(targetDir, command, args, options = {}) {
   if (parallel) {
     const promises = subdirs.map(async (subdir, index) => {
       const subdirPath = path.join(absoluteTargetDir, subdir);
-      const result = await executeInDirectory(subdirPath, command, args, verbose);
+      const result = await executeInDirectory(subdirPath, command, args, verbose, shellConfig);
 
       if (progressBar) {
         progressBar.increment();
@@ -93,7 +113,7 @@ export async function batchExecute(targetDir, command, args, options = {}) {
     for (let i = 0; i < subdirs.length; i++) {
       const subdir = subdirs[i];
       const subdirPath = path.join(absoluteTargetDir, subdir);
-      const result = await executeInDirectory(subdirPath, command, args, verbose);
+      const result = await executeInDirectory(subdirPath, command, args, verbose, shellConfig);
 
       results.push({ directory: subdir, ...result });
 

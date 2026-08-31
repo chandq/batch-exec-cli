@@ -39,6 +39,7 @@ describe('CLI Integration', () => {
     const result = await $`node ${cliPath} --help`;
     assert(result.stdout.includes('Usage:'));
     assert(result.stdout.includes('batch-exec'));
+    assert(result.stdout.includes('--shell'));
   });
 
   it('should execute command in subdirectories', async () => {
@@ -77,6 +78,28 @@ describe('CLI Integration', () => {
     const result = await $`node ${cliPath} --verbose ${targetDir} echo hello`;
     assert(result.stdout.includes('Target directory:'));
     assert(result.stdout.includes('Command:'));
+  });
+
+  it('should execute with --shell bash and show the selected shell', async () => {
+    const cliPath = toPosixPath(path.join(process.cwd(), 'src/cli.js'));
+    const targetDir = toPosixPath(testProjectsDir);
+    const result = await $`node ${cliPath} --shell bash --verbose --no-progress ${targetDir} printf '%s' shell`;
+
+    assert(result.stdout.includes('Shell:'));
+    assert(result.stdout.includes('bash'));
+  });
+
+  it('should show captured stdout when a bash command fails', async () => {
+    const cliPath = toPosixPath(path.join(process.cwd(), 'src/cli.js'));
+    const failScript = path.join(tempDir, 'fail-command.mjs');
+    await fs.writeFile(failScript, "console.log('stdout failure detail'); process.exit(3);\n");
+
+    const targetDir = toPosixPath(testProjectsDir);
+    const result = await $`node ${cliPath} --shell bash --no-progress ${targetDir} ${process.execPath} ${toPosixPath(failScript)}`;
+    const output = stripAnsi(result.stdout);
+
+    assert(output.includes('Failed directories:'));
+    assert(output.includes('stdout failure detail'));
   });
 
   it('should fail with error message when missing arguments', async () => {

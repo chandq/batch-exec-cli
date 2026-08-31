@@ -68,4 +68,40 @@ describe('batchExecute', () => {
       assert(result.stdout.includes('hello world'));
     });
   });
+
+  it('should execute with an explicitly selected shell', async () => {
+    const results = await batchExecute(tempDir, 'printf', ['%s', 'shell works'], {
+      shell: 'bash',
+      showProgress: false,
+      parallel: false
+    });
+
+    results.forEach(result => {
+      assert.strictEqual(result.success, true);
+      assert.strictEqual(result.stdout, 'shell works');
+    });
+  });
+
+  it('should preserve each subdirectory as cwd when a shell is selected', async () => {
+    const results = await batchExecute(tempDir, 'pwd', [], {
+      shell: 'bash',
+      showProgress: false,
+      parallel: false
+    });
+
+    results.forEach(result => {
+      assert.strictEqual(result.success, true);
+      assert.strictEqual(path.basename(result.stdout.trim()), result.directory);
+    });
+  });
+
+  it('should reject an unavailable shell before listing or executing directories', async () => {
+    await assert.rejects(
+      batchExecute(path.join(tempDir, 'does-not-matter'), 'echo', ['ignored'], {
+        shell: 'batch-exec-shell-does-not-exist',
+        showProgress: false
+      }),
+      { message: /Shell not found/ }
+    );
+  });
 });

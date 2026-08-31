@@ -65,6 +65,7 @@ batch-exec ./repos ls -la
 | 选项                | 别名 | 描述                                           |
 | ------------------- | ---- | ---------------------------------------------- |
 | `-s, --skip <文件>` |      | 指定忽略文件路径（默认：`./.batchexecignore`） |
+| `--shell <名称或路径>` |      | 指定执行命令使用的 shell：`system`、`bash`、`cmd`、`powershell`、`pwsh` 或可执行文件路径 |
 | `-v, --verbose`     |      | 显示详细输出                                   |
 | `--no-progress`     |      | 禁用进度条显示                                 |
 | `--no-parallel`     |      | 禁用并行执行, 按顺序执行                       |
@@ -81,6 +82,24 @@ batch-exec --skip ./custom-ignore.txt ./repos git status
 ```bash
 batch-exec --no-progress ./my-projects npm install
 ```
+
+### 使用指定 Shell
+
+默认模式保持现有的 zx Bash 执行方式。需要使用系统默认终端或其他 shell 时，可以显式指定：
+
+```bash
+# 使用当前系统默认 shell（Windows 使用 ComSpec，Unix 使用 SHELL）
+batch-exec --shell system ./my-projects npm install
+
+# Windows 使用 PowerShell 或 cmd.exe
+batch-exec --shell powershell ./my-projects git status
+batch-exec --shell cmd ./my-projects echo hello
+
+# 也可以传入 shell 可执行文件路径
+batch-exec --shell /bin/zsh ./my-projects npm test
+```
+
+Shell 参数只切换命令解释器，命令仍以非交互方式执行并捕获标准输出和错误输出。
 
 ### 显示详细输出
 
@@ -136,7 +155,8 @@ import { batchExecute } from 'batch-exec-cli';
 
 const results = await batchExecute('./my-projects', 'git', ['pull'], {
   verbose: false,
-  showProgress: true
+  showProgress: true,
+  shell: 'system'
 });
 
 console.log(results);
