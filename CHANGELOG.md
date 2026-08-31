@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.4.0](https://github.com/chandq/batch-exec-cli/compare/v1.3.4...v1.4.0) (2026-08-31)
+
+
+### Features
+
+* add configurable shell execution for batch commands ([8e54373](https://github.com/chandq/batch-exec-cli/commit/8e54373b49eae8787768da9f7e5e233579b264e8))
+
 ### [1.3.4](https://github.com/chandq/batch-exec-cli/compare/v1.3.3...v1.3.4) (2026-06-20)
 
 
