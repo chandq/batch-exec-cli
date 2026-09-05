@@ -3,6 +3,7 @@ import assert from 'node:assert';
 import path from 'path';
 import {
   quoteCmd,
+  gitBashCandidates,
   resolveShell,
   resolveDefaultConfig,
   shellDisplayName,
@@ -160,5 +161,52 @@ describe('shell configuration', () => {
 
   it('rejects an unavailable shell before execution', () => {
     assert.throws(() => resolveShell('batch-exec-shell-does-not-exist'), /Shell not found/);
+  });
+
+  it('derives Git Bash candidates from ProgramFiles instead of hardcoding C:', () => {
+    // Non-Windows platforms resolve no Git Bash candidates.
+    assert.deepStrictEqual(gitBashCandidates({}, 'linux'), []);
+
+    // With no ProgramFiles env vars set, fall back to the C: defaults.
+    assert.deepStrictEqual(gitBashCandidates({}, 'win32'), [
+      path.join('C:\\Program Files', 'Git', 'bin', 'bash.exe'),
+      path.join('C:\\Program Files (x86)', 'Git', 'bin', 'bash.exe')
+    ]);
+
+    // A non-C: system drive surfaces from the standard env vars, with C:
+    // kept as a fallback. ProgramW6432 duplicating ProgramFiles is deduped.
+    assert.deepStrictEqual(
+      gitBashCandidates(
+        {
+          ProgramFiles: 'D:\\Program Files',
+          'ProgramFiles(x86)': 'D:\\Program Files (x86)',
+          ProgramW6432: 'D:\\Program Files'
+        },
+        'win32'
+      ),
+      [
+        path.join('D:\\Program Files', 'Git', 'bin', 'bash.exe'),
+        path.join('D:\\Program Files (x86)', 'Git', 'bin', 'bash.exe'),
+        path.join('C:\\Program Files', 'Git', 'bin', 'bash.exe'),
+        path.join('C:\\Program Files (x86)', 'Git', 'bin', 'bash.exe')
+      ]
+    );
+
+    // On a normal 64-bit system the C: env vars coincide with the defaults,
+    // so dedup keeps exactly two candidates.
+    assert.deepStrictEqual(
+      gitBashCandidates(
+        {
+          ProgramFiles: 'C:\\Program Files',
+          'ProgramFiles(x86)': 'C:\\Program Files (x86)',
+          ProgramW6432: 'C:\\Program Files'
+        },
+        'win32'
+      ),
+      [
+        path.join('C:\\Program Files', 'Git', 'bin', 'bash.exe'),
+        path.join('C:\\Program Files (x86)', 'Git', 'bin', 'bash.exe')
+      ]
+    );
   });
 });

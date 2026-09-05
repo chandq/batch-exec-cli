@@ -19,7 +19,33 @@ const SHELL_ALIASES = new Map([
 // WSL.exe cannot be used as a shell: zx/Node spawn shells on Windows with the
 // cmd-style `/d /s /c` contract, which wsl.exe does not accept. It is handled
 // in resolveShell() with an actionable error instead of being listed here.
-const GIT_BASH_CANDIDATES = ['C:\\Program Files\\Git\\bin\\bash.exe', 'C:\\Program Files (x86)\\Git\\bin\\bash.exe'];
+//
+// Fallback install roots for Git for Windows bash. These are only consulted
+// when `bash` is not on PATH. The system drive is not always C: (OEM/enterprise
+// images) and Git may be installed to a custom drive, so the roots are derived
+// from the standard ProgramFiles environment variables with C:\ kept only as a
+// last-resort default.
+const DEFAULT_GIT_BASH_ROOTS = ['C:\\Program Files', 'C:\\Program Files (x86)'];
+
+/**
+ * Candidate paths for Git for Windows `bash.exe`, drive-agnostic.
+ *
+ * `env` and `platform` are parameters (rather than reading process globals
+ * directly) so this stays a pure, testable function; callers omit them to use
+ * the live environment.
+ */
+export function gitBashCandidates(env = process.env, platform = process.platform) {
+  if (platform !== 'win32') return [];
+
+  const roots = [
+    env.ProgramFiles,
+    env['ProgramFiles(x86)'],
+    env.ProgramW6432,
+    ...DEFAULT_GIT_BASH_ROOTS
+  ].filter(Boolean);
+
+  return [...new Set(roots)].map(root => path.join(root, 'Git', 'bin', 'bash.exe'));
+}
 
 export function quoteCmd(arg) {
   const value = String(arg);
@@ -155,7 +181,7 @@ function resolveBashDefinition() {
   } catch {
     // bash is not on PATH; fall back to Git for Windows install locations.
   }
-  for (const candidate of GIT_BASH_CANDIDATES) {
+  for (const candidate of gitBashCandidates()) {
     if (existsSync(candidate)) candidates.push(candidate);
   }
 
