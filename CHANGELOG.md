@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.5.1](https://github.com/chandq/batch-exec-cli/compare/v1.5.0...v1.5.1) (2026-09-05)
+
+
+### Bug Fixes
+
+* **shell:** derive Git Bash candidates from ProgramFiles instead of hardcoding C: ([f559d61](https://github.com/chandq/batch-exec-cli/commit/f559d6143d6f0255319030c75cdce1dda5cecbc0))
+
 ## [1.5.0](https://github.com/chandq/batch-exec-cli/compare/v1.4.0...v1.5.0) (2026-09-05)
 
 
