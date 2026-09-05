@@ -7,9 +7,7 @@ export function isWslPath(targetDir) {
   if (typeof targetDir !== 'string') return false;
   const normalized = targetDir.replace(/\\/g, '/');
   return (
-    normalized.startsWith('/mnt/') ||
-    normalized.startsWith('//wsl$/') ||
-    normalized.startsWith('//wsl.localhost/')
+    normalized.startsWith('/mnt/') || normalized.startsWith('//wsl$/') || normalized.startsWith('//wsl.localhost/')
   );
 }
 

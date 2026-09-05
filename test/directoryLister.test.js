@@ -16,12 +16,12 @@ describe('directoryLister', () => {
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'batch-exec-test-'));
-    
+
     await fs.mkdir(path.join(tempDir, 'dir1'));
     await fs.mkdir(path.join(tempDir, 'dir2'));
     await fs.mkdir(path.join(tempDir, 'node_modules'));
     await fs.mkdir(path.join(tempDir, '.git'));
-    
+
     await fs.writeFile(path.join(tempDir, 'file1.txt'), 'content');
     await fs.writeFile(path.join(tempDir, 'file2.js'), 'content');
   });
@@ -86,17 +86,13 @@ describe('directoryLister', () => {
     });
 
     it('should throw error for non-existent directory', async () => {
-      await assert.rejects(
-        listDirectSubdirectories(path.join(tempDir, 'non-existent')),
-        { message: /Directory not found/ }
-      );
+      await assert.rejects(listDirectSubdirectories(path.join(tempDir, 'non-existent')), {
+        message: /Directory not found/
+      });
     });
 
     it('should throw error for file path', async () => {
-      await assert.rejects(
-        listDirectSubdirectories(path.join(tempDir, 'file1.txt')),
-        { message: /Not a directory/ }
-      );
+      await assert.rejects(listDirectSubdirectories(path.join(tempDir, 'file1.txt')), { message: /Not a directory/ });
     });
 
     it('should work with relative paths', async () => {

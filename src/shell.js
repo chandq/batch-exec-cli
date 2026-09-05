@@ -19,10 +19,7 @@ const SHELL_ALIASES = new Map([
 // WSL.exe cannot be used as a shell: zx/Node spawn shells on Windows with the
 // cmd-style `/d /s /c` contract, which wsl.exe does not accept. It is handled
 // in resolveShell() with an actionable error instead of being listed here.
-const GIT_BASH_CANDIDATES = [
-  'C:\\Program Files\\Git\\bin\\bash.exe',
-  'C:\\Program Files (x86)\\Git\\bin\\bash.exe'
-];
+const GIT_BASH_CANDIDATES = ['C:\\Program Files\\Git\\bin\\bash.exe', 'C:\\Program Files (x86)\\Git\\bin\\bash.exe'];
 
 export function quoteCmd(arg) {
   const value = String(arg);
@@ -197,8 +194,8 @@ function buildShellConfig(requested, definition) {
     prefix: strict
       ? strictBashPrefix(executable)
       : syntax === 'powershell'
-      ? '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; $OutputEncoding=[System.Text.Encoding]::UTF8; '
-      : '',
+        ? '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; $OutputEncoding=[System.Text.Encoding]::UTF8; '
+        : '',
     // PowerShell reports cmdlet errors (e.g. "dir: cannot find path") as
     // non-terminating, leaving $LASTEXITCODE empty. Capture $? immediately
     // after the command (later statements reset it) and exit with the native
