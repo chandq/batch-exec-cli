@@ -1,6 +1,6 @@
 import path from 'path';
 import { stat as fsStat } from 'node:fs/promises';
-import { $, within, cd } from 'zx';
+import { $ } from 'zx';
 import { parseIgnoreFile } from './ignoreParser.js';
 import { listDirectSubdirectories, resolveAccessiblePath, isUncWindowsPath } from './directoryLister.js';
 import { resolveShell, resolveDefaultConfig, normalizeCommandOutput, decodeCmdOutput } from './shell.js';
@@ -62,33 +62,36 @@ async function executeInDirectory(subdirPath, command, args, verbose, shellConfi
     let stdout = '';
     let stderr = '';
 
-    await within(async () => {
-      cd(subdirPath);
-      // Create the configured zx executor after cd(): zx captures the current
-      // AsyncLocalStorage cwd when a local executor is created.
-      const execute = shellConfig
-        ? $({
-            shell: shellConfig.executable,
-            prefix: shellConfig.prefix,
-            postfix: shellConfig.postfix,
-            quote: shellConfig.quote
-          })
-        : $;
-
-      if (verbose) {
-        result = await execute`${command} ${args}`;
-      } else {
-        result = await execute`${command} ${args}`.quiet();
-      }
-      stdout = captureOutput(result, shellConfig, 'stdout');
-      stderr = captureOutput(result, shellConfig, 'stderr');
-      if (verbose) {
-        console.log(`${cyan(subdirPath)}: `, stdout);
-        if (stderr) {
-          console.error(`${cyan(subdirPath)}: `, stderr);
+    // Use a per-call zx executor whose working directory is subdirPath. This
+    // avoids zx's process-wide cd(): it mutates process.cwd() (via an async
+    // hook that keeps the process cwd synced to AsyncLocalStorage), which
+    // breaks parallel runs and leaves the caller's cwd inside the executed
+    // directory - on Windows that directory can then not be removed, making
+    // temp-dir cleanup slow/fail.
+    const executorOptions = shellConfig
+      ? {
+          cwd: subdirPath,
+          shell: shellConfig.executable,
+          prefix: shellConfig.prefix,
+          postfix: shellConfig.postfix,
+          quote: shellConfig.quote
         }
+      : { cwd: subdirPath };
+    const execute = $(executorOptions);
+
+    if (verbose) {
+      result = await execute`${command} ${args}`;
+    } else {
+      result = await execute`${command} ${args}`.quiet();
+    }
+    stdout = captureOutput(result, shellConfig, 'stdout');
+    stderr = captureOutput(result, shellConfig, 'stderr');
+    if (verbose) {
+      console.log(`${cyan(subdirPath)}: `, stdout);
+      if (stderr) {
+        console.error(`${cyan(subdirPath)}: `, stderr);
       }
-    });
+    }
 
     return {
       success: true,

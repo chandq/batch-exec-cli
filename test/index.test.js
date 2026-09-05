@@ -160,13 +160,22 @@ describe('batchExecute', () => {
   it('should let non-cmd shells reach directory resolution for a UNC target', async () => {
     if (process.platform !== 'win32') return;
     // PowerShell supports UNC working directories, so the cmd guard must not
-    // trigger; resolution proceeds and fails with "not found" instead.
+    // trigger; the (missing) UNC path then fails during directory resolution.
+    // The exact error depends on the host: ENOENT/"Directory not found" when a
+    // WSL distro is present, ECONNRESET on a runner without WSL. Only assert
+    // that it is NOT the cmd/UNC guard message.
     await assert.rejects(
-      batchExecute('\\\\wsl.localhost\\Ubuntu\\definitely-missing', 'echo', ['hi'], {
+      batchExecute('\\wsl.localhost\\Ubuntu\\definitely-missing', 'echo', ['hi'], {
         shell: 'powershell',
         showProgress: false
       }),
-      /Directory not found/i
+      error => {
+        assert.ok(
+          !/CMD\.EXE cannot use a UNC path/i.test(error.message),
+          `should pass the cmd guard, got: ${error.message}`
+        );
+        return true;
+      }
     );
   });
 });
