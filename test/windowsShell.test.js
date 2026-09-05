@@ -91,4 +91,28 @@ describe('Windows shell integration', { skip: process.platform !== 'win32' }, ()
       });
     }
   });
+
+  it('does not truncate PowerShell table output (pwsh)', async t => {
+    // Regression: a trailing `exit 0` in the pwsh postfix used to stop the
+    // runspace before Format-Table flushed, silently dropping table output
+    // such as `Get-ExecutionPolicy -List`.
+    let config;
+    try {
+      config = resolveShell('pwsh');
+    } catch {
+      return t.skip('pwsh is not installed or not on PATH');
+    }
+
+    const results = await batchExecute(tempDir, 'Get-ExecutionPolicy', ['-List'], {
+      shell: 'pwsh',
+      showProgress: false,
+      parallel: false
+    });
+
+    results.forEach(result => {
+      assert.strictEqual(result.success, true);
+      assert.ok(result.stdout.length > 10, `expected table output, got: ${JSON.stringify(result.stdout)}`);
+      assert.match(result.stdout, /ExecutionPolicy/);
+    });
+  });
 });

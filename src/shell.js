@@ -200,10 +200,13 @@ function buildShellConfig(requested, definition) {
     // non-terminating, leaving $LASTEXITCODE empty. Capture $? immediately
     // after the command (later statements reset it) and exit with the native
     // code when present, otherwise 1 for cmdlet errors.
+    // NOTE: never append a trailing `exit 0` here. PowerShell's `exit` stops
+    // the runspace before the formatting engine flushes deferred Format-Table
+    // output, so any trailing `exit` silently drops table-formatted results
+    // (e.g. `Get-ExecutionPolicy -List`, `Get-Process`). Ending without exit
+    // lets tables render and the process still exits 0 on success.
     postfix:
-      syntax === 'powershell'
-        ? '; $ok=$?; $be=$LASTEXITCODE; if ($be) { exit $be }; if (-not $ok) { exit 1 }; exit 0'
-        : '',
+      syntax === 'powershell' ? '; $ok=$?; $be=$LASTEXITCODE; if ($be) { exit $be }; if (-not $ok) { exit 1 }' : '',
     quote: syntax === 'powershell' ? quotePowerShell : syntax === 'cmd' ? quoteCmd : quote
   };
 }
