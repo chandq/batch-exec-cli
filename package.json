@@ -5,7 +5,7 @@
   "type": "module",
   "main": "src/index.js",
   "bin": {
-    "batch-exec": "src/cli.js"
+    "batch-exec": "bin/batch-exec"
   },
   "scripts": {
     "test": "node --test",
@@ -13,8 +13,13 @@
     "lint": "eslint src/ test/"
   },
   "files": [
-    "src"
+    "src",
+    "bin"
   ],
+  "homepage": "https://github.com/chandq/batch-exec-cli#readme",
+  "bugs": {
+    "url": "https://github.com/chandq/batch-exec-cli/issues"
+  },
   "keywords": [
     "batch-exec",
     "batchexec",

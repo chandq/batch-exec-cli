@@ -1,0 +1,67 @@
+name: Bug report
+description: Report a problem with batch-exec-cli
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Before filing:
+        - Update to the latest release first.
+        - Do **not** report security issues here — use
+          https://github.com/chandq/batch-exec-cli/security/advisories/new
+  - type: input
+    id: version
+    attributes:
+      label: Version & install method
+      description: Output of `batch-exec-cli --version` and how you installed it.
+      placeholder: '1.4.0 via npm / npx / Homebrew / Scoop / from source'
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS / environment
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - WSL (inside a Linux distro)
+      description: Which OS are you running on?
+    validations:
+      required: true
+  - type: input
+    id: shell
+    attributes:
+      label: Shell used (if any)
+      description: e.g. default, bash, cmd, powershell, pwsh, system
+    validations:
+      required: false
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what actually happened?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Include the exact directory layout and command you ran.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / error output
+      description: Paste output (run with --verbose if useful).
+      render: shell
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+    validations:
+      required: false

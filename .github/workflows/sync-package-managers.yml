@@ -1,0 +1,44 @@
+name: sync-package-managers
+
+# Keep the external Homebrew formula and Scoop manifest in sync after each
+# release. Deliberately a SEPARATE workflow from release.yml: npm registry CDN
+# replication can lag, so a slow sync must not turn the release red.
+#
+# External repos touched by scripts/publish-package-managers.js:
+#   - chandq/homebrew-tap   (Homebrew formula  batch-exec-cli.rb)
+#   - chandq/scoop-bucket   (Scoop manifest    batch-exec-cli.json)
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_registry_wait_ms:
+        description: 'Max ms to wait for the npm tarball to replicate before failing'
+        required: false
+        default: '60000'
+  workflow_run:
+    workflows: ['release']
+    types: [completed]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    steps:
+      - name: Checkout default branch (post-bump package.json)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Sync Homebrew & Scoop manifests
+        run: node scripts/publish-package-managers.js
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          MAX_REGISTRY_WAIT_MS: ${{ inputs.max_registry_wait_ms || 60000 }}

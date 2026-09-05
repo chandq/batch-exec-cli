@@ -1,0 +1,47 @@
+name: Feature request
+description: Suggest an enhancement for batch-exec-cli
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea! To keep this tool small and dependency-light, we
+        prioritize changes that are cross-platform and composable with existing
+        flags. See CONTRIBUTING.md if you'd like to help implement it.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What can't you do today, or what is awkward?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the CLI flag / behavior / API you envision.
+      placeholder: 'e.g. a new flag that ...'
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+    validations:
+      required: false
+  - type: dropdown
+    id: help
+    attributes:
+      label: Would you like to help implement it?
+      options:
+        - Yes, I can open a pull request
+        - I can help test
+        - No
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+    validations:
+      required: false

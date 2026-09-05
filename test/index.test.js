@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
-import { batchExecute } from '../src/index.js';
+import { batchExecute, runInDirectory } from '../src/index.js';
 import { safeRm } from './helpers.js';
 
 describe('batchExecute', () => {
@@ -40,6 +40,47 @@ describe('batchExecute', () => {
 
     const dirs = results.map(r => r.directory);
     assert.deepStrictEqual(dirs.sort(), ['dir1', 'dir2'].sort());
+  });
+
+  it('should only run in directories matching matchPatterns', async () => {
+    await fs.mkdir(path.join(tempDir, 'svc-alpha'));
+    await fs.mkdir(path.join(tempDir, 'svc-beta'));
+    await fs.mkdir(path.join(tempDir, 'lib-core'));
+
+    const results = await batchExecute(tempDir, 'echo', ['hi'], {
+      matchPatterns: ['^svc-'],
+      showProgress: false,
+      parallel: false
+    });
+
+    assert.deepStrictEqual(
+      results.map(r => r.directory),
+      ['svc-alpha', 'svc-beta']
+    );
+  });
+
+  it('should intersect matchPatterns with skipPaths', async () => {
+    await fs.mkdir(path.join(tempDir, 'svc-alpha'));
+    await fs.mkdir(path.join(tempDir, 'svc-beta'));
+
+    const results = await batchExecute(tempDir, 'echo', ['hi'], {
+      matchPatterns: ['^svc-'],
+      skipPaths: ['svc-alpha'],
+      showProgress: false,
+      parallel: false
+    });
+
+    assert.deepStrictEqual(
+      results.map(r => r.directory),
+      ['svc-beta']
+    );
+  });
+
+  it('should reject an invalid match regex before executing', async () => {
+    await assert.rejects(
+      batchExecute(tempDir, 'echo', ['hi'], { matchPatterns: ['['], showProgress: false }),
+      /Invalid --match pattern/
+    );
   });
 
   it('should capture command output', async () => {
@@ -126,6 +167,35 @@ describe('batchExecute', () => {
         showProgress: false
       }),
       /Directory not found/i
+    );
+  });
+});
+
+describe('runInDirectory', () => {
+  let tempDir;
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'batch-exec-run-'));
+    await fs.mkdir(path.join(tempDir, 'dir1'));
+  });
+
+  afterEach(async () => {
+    await safeRm(tempDir);
+  });
+
+  it('should run the command exactly once in the given directory', async () => {
+    const target = path.join(tempDir, 'dir1');
+    const result = await runInDirectory(target, 'pwd', [], { showProgress: false });
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.directory, target);
+    assert.strictEqual(path.basename(result.stdout.trim()), 'dir1');
+  });
+
+  it('should report a missing directory clearly', async () => {
+    await assert.rejects(
+      runInDirectory(path.join(tempDir, 'does-not-exist'), 'echo', ['x'], { showProgress: false }),
+      /Directory not found/
     );
   });
 });

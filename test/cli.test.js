@@ -75,6 +75,35 @@ describe('CLI Integration', () => {
     assert(result.stdout.includes('Usage:'));
     assert(result.stdout.includes('batch-exec'));
     assert(result.stdout.includes('--shell'));
+    assert(result.stdout.includes('--match'));
+    assert(result.stdout.includes('--dir'));
+    assert(result.stdout.includes('--version'));
+  });
+
+  it('should print the version with --version', async () => {
+    const result = await runCli('--version');
+    assert.match(result.stdout.trim(), /^\d+\.\d+\.\d+$/);
+  });
+
+  it('should run once in a single directory with --dir', async () => {
+    const projectDir = toPosixPath(path.join(testProjectsDir, 'project1'));
+    const result = await runCli('--dir', projectDir, 'echo', 'single-ok');
+    const output = stripAnsi(result.stdout);
+
+    assert(output.includes('single-ok'));
+    assert(/Total directories:\s+1/.test(output));
+    assert(!output.includes('project2'));
+  });
+
+  it('should filter subdirectories with --match regex', async () => {
+    const targetDir = toPosixPath(testProjectsDir);
+    const result = await runCli('--no-progress', '--no-parallel', '--match', '^project', targetDir, 'echo', 'm');
+    const output = stripAnsi(result.stdout);
+
+    assert(/Total directories:\s+2/.test(output));
+    assert(output.includes('=== project1 ==='));
+    assert(output.includes('=== project2 ==='));
+    assert(!output.includes('node_modules'));
   });
 
   it('should execute command in subdirectories', async () => {
