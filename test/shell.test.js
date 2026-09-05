@@ -37,8 +37,15 @@ describe('shell configuration', () => {
     assert.match(config.prefix, /set -eu/);
   });
 
-  it('keeps the cmd prefix empty and decodes OEM output instead of relying on chcp', () => {
-    const config = resolveShell('cmd');
+  it('keeps the cmd prefix empty and decodes OEM output instead of relying on chcp', t => {
+    let config;
+    try {
+      config = resolveShell('cmd');
+    } catch {
+      // cmd.exe only exists on Windows; skip cleanly elsewhere.
+      t.skip('cmd.exe is not available on this platform');
+      return;
+    }
 
     assert.strictEqual(config.syntax, 'cmd');
     assert.strictEqual(config.prefix, '');
@@ -65,8 +72,15 @@ describe('shell configuration', () => {
     assert.strictEqual(decodeCmdOutput(fakeOutput, 'stdout', 936), 'plain text');
   });
 
-  it('forces UTF-8 pipe encoding for PowerShell output', () => {
-    const config = resolveShell(process.platform === 'win32' ? 'powershell' : 'pwsh');
+  it('forces UTF-8 pipe encoding for PowerShell output', t => {
+    let config;
+    try {
+      config = resolveShell(process.platform === 'win32' ? 'powershell' : 'pwsh');
+    } catch {
+      // PowerShell (powershell) / pwsh is not installed on this machine.
+      t.skip('PowerShell is not installed or not on PATH');
+      return;
+    }
 
     assert.strictEqual(config.syntax, 'powershell');
     assert.match(config.prefix, /\[Console\]::OutputEncoding=.*UTF8/i);
