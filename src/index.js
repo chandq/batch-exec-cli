@@ -1,12 +1,19 @@
 import path from 'path';
 import { $, within, cd } from 'zx';
 import { parseIgnoreFile } from './ignoreParser.js';
-import { listDirectSubdirectories } from './directoryLister.js';
-import { resolveShell } from './shell.js';
+import { listDirectSubdirectories, resolveAccessiblePath, isUncWindowsPath } from './directoryLister.js';
+import { resolveShell, resolveDefaultConfig, normalizeCommandOutput, decodeCmdOutput } from './shell.js';
 import { cyan, red, ProgressBar, clearLine } from './utils/colors.js';
 
 export { parseIgnoreFile };
 export { listDirectSubdirectories };
+
+function captureOutput(output, shellConfig, stream) {
+  if (shellConfig?.syntax === 'cmd') {
+    return normalizeCommandOutput(decodeCmdOutput(output, stream), shellConfig.syntax);
+  }
+  return normalizeCommandOutput(output?.[stream] ?? '', shellConfig?.syntax);
+}
 
 async function executeInDirectory(subdirPath, command, args, verbose, shellConfig) {
   try {
@@ -15,6 +22,8 @@ async function executeInDirectory(subdirPath, command, args, verbose, shellConfi
     }
 
     let result;
+    let stdout = '';
+    let stderr = '';
 
     await within(async () => {
       cd(subdirPath);
@@ -34,50 +43,68 @@ async function executeInDirectory(subdirPath, command, args, verbose, shellConfi
       } else {
         result = await execute`${command} ${args}`.quiet();
       }
+      stdout = captureOutput(result, shellConfig, 'stdout');
+      stderr = captureOutput(result, shellConfig, 'stderr');
       if (verbose) {
-        console.log(`${cyan(subdirPath)}: `, result.stdout);
-        if (result.stderr) {
-          console.error(`${cyan(subdirPath)}: `, result.stderr);
+        console.log(`${cyan(subdirPath)}: `, stdout);
+        if (stderr) {
+          console.error(`${cyan(subdirPath)}: `, stderr);
         }
       }
     });
 
     return {
       success: true,
-      stdout: result.stdout,
-      stderr: result.stderr
+      stdout,
+      stderr
     };
   } catch (error) {
+    const stdout = captureOutput(error, shellConfig, 'stdout');
+    const stderr = captureOutput(error, shellConfig, 'stderr');
+    // zx builds ProcessOutput.message from UTF-8-decoded stderr, which is
+    // lossy for cmd.exe (OEM code page). Rebuild a clean, single-line message
+    // from the exit code and expose the correctly-decoded stderr separately.
+    const message = error.exitCode != null ? `Command failed with exit code ${error.exitCode}` : error.message;
     if (verbose) {
-      console.error(red(`Error in ${cyan(subdirPath)}: ${error.message}`));
-      if (error.stdout) {
-        console.log(`${cyan(subdirPath)}: `, error.stdout);
+      console.error(red(`Error in ${cyan(subdirPath)}: ${message}`));
+      if (stdout) {
+        console.log(`${cyan(subdirPath)}: `, stdout);
       }
-      if (error.stderr) {
-        console.error(`${cyan(subdirPath)}: `, error.stderr);
+      if (stderr) {
+        console.error(`${cyan(subdirPath)}: `, stderr);
       }
     }
     return {
       success: false,
-      error: error.message,
-      stdout: error.stdout || '',
-      stderr: error.stderr || ''
+      error: message,
+      stdout,
+      stderr
     };
   }
 }
 
 export async function batchExecute(targetDir, command, args, options = {}) {
-  const {
-    skipPaths = [],
-    verbose = false,
-    showProgress = true,
-    parallel = true,
-    shell: shellOption
-  } = options;
+  const { skipPaths = [], verbose = false, showProgress = true, parallel = true, shell: shellOption } = options;
 
-  const shellConfig = resolveShell(shellOption);
+  // On Windows the zx default (bash from PATH) may resolve to the broken WSL
+  // bash shim, so an explicit default is resolved here when no shell is given.
+  const shellConfig = shellOption == null || shellOption === '' ? resolveDefaultConfig() : resolveShell(shellOption);
 
-  const absoluteTargetDir = path.resolve(targetDir);
+  // Resolve the target through WSL-aware path handling BEFORE path.resolve,
+  // otherwise /mnt/... or \\wsl$\... paths would be mangled into D:\mnt\...
+  // and become unreachable on the Windows host.
+  const absoluteTargetDir = resolveAccessiblePath(targetDir);
+
+  // cmd.exe refuses UNC paths (e.g. \\wsl.localhost\..., \\server\share) as the
+  // working directory and silently falls back to C:\Windows. Fail fast instead
+  // of running the command against the wrong directory.
+  if (process.platform === 'win32' && shellConfig?.syntax === 'cmd' && isUncWindowsPath(absoluteTargetDir)) {
+    throw new Error(
+      `CMD.EXE cannot use a UNC path (${absoluteTargetDir}) as the working directory and would silently ` +
+        'run in C:\\Windows. Use --shell system/powershell/pwsh (PowerShell supports UNC working ' +
+        'directories), or run this CLI inside WSL for WSL-native paths.'
+    );
+  }
 
   const subdirs = await listDirectSubdirectories(absoluteTargetDir, skipPaths);
 
@@ -101,13 +128,10 @@ export async function batchExecute(targetDir, command, args, options = {}) {
       return { directory: subdir, ...result };
     });
 
+    // Promise.all preserves input order, so index i matches subdirs[i].
     const resolvedResults = await Promise.all(promises);
-
-    for (const subdir of subdirs) {
-      const result = resolvedResults.find(r => r.directory === subdir);
-      if (result) {
-        results.push(result);
-      }
+    for (let i = 0; i < subdirs.length; i++) {
+      results.push(resolvedResults[i]);
     }
   } else {
     for (let i = 0; i < subdirs.length; i++) {
@@ -116,23 +140,6 @@ export async function batchExecute(targetDir, command, args, options = {}) {
       const result = await executeInDirectory(subdirPath, command, args, verbose, shellConfig);
 
       results.push({ directory: subdir, ...result });
-
-      // if (verbose) {
-      //   if (result.success) {
-      //     console.log(result.stdout);
-      //     if (result.stderr) {
-      //       console.error(result.stderr);
-      //     }
-      //   } else {
-      //     console.error(red(`Error in ${cyan(subdir)}: ${result.error}`));
-      //     if (result.stdout) {
-      //       console.log(result.stdout);
-      //     }
-      //     if (result.stderr) {
-      //       console.error(result.stderr);
-      //     }
-      //   }
-      // }
 
       if (progressBar) {
         progressBar.update(i + 1);

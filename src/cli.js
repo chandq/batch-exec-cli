@@ -5,7 +5,7 @@ import path from 'path';
 import minimist from 'minimist';
 import { $ } from 'zx';
 import { batchExecute, parseIgnoreFile } from './index.js';
-import { resolveShell, shellDisplayName } from './shell.js';
+import { resolveShell, resolveDefaultConfig, shellDisplayName } from './shell.js';
 import { cyan, yellow, green, red, gray, bold, dim, magenta, blue } from './utils/colors.js';
 
 const require = createRequire(import.meta.url);
@@ -50,7 +50,7 @@ async function main() {
   const skipPaths = await parseIgnoreFile(ignoreFilePath);
   let shellConfig;
   try {
-    shellConfig = resolveShell(argv.shell);
+    shellConfig = argv.shell ? resolveShell(argv.shell) : resolveDefaultConfig();
   } catch (error) {
     console.error(red(`\nError: ${error.message}\n`));
     process.exit(1);
@@ -109,12 +109,17 @@ ${magenta('Options:')}
       --no-parallel  Disable parallel execution (use sequential mode)
   -h, --help         Show this help message
 
+${yellow('WSL:')} run this CLI inside WSL with --shell bash for native paths,
+  or from Windows point at /mnt/... (converted automatically) or \\\\wsl.localhost\\...
+  and use --shell system/powershell/pwsh (cmd cannot use UNC working directories).
+
 ${green('Examples:')}
   ${green('batch-exec')} ./my-projects git pull
   ${green('batch-exec')} ./my-projects npm update lodash -S
   ${green('batch-exec')} --skip ./custom-ignore.txt ./repos ls -la
   ${green('batch-exec')} --no-parallel ./my-projects npm install
   ${green('batch-exec')} --shell powershell ./my-projects git status
+  ${green('batch-exec')} --shell pwsh "\\\\wsl.localhost\\Ubuntu\\home\\user\\repos" git status
 `);
 }
 

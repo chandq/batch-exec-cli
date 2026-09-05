@@ -104,4 +104,28 @@ describe('batchExecute', () => {
       { message: /Shell not found/ }
     );
   });
+
+  it('should refuse cmd.exe with a UNC target instead of silently running in C:\\Windows', async () => {
+    if (process.platform !== 'win32') return;
+    await assert.rejects(
+      batchExecute('\\\\wsl.localhost\\Ubuntu\\home\\user', 'echo', ['hi'], {
+        shell: 'cmd',
+        showProgress: false
+      }),
+      /CMD\.EXE cannot use a UNC path/i
+    );
+  });
+
+  it('should let non-cmd shells reach directory resolution for a UNC target', async () => {
+    if (process.platform !== 'win32') return;
+    // PowerShell supports UNC working directories, so the cmd guard must not
+    // trigger; resolution proceeds and fails with "not found" instead.
+    await assert.rejects(
+      batchExecute('\\\\wsl.localhost\\Ubuntu\\definitely-missing', 'echo', ['hi'], {
+        shell: 'powershell',
+        showProgress: false
+      }),
+      /Directory not found/i
+    );
+  });
 });

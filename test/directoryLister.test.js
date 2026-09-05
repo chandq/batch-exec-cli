@@ -3,7 +3,12 @@ import assert from 'node:assert';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
-import { listDirectSubdirectories } from '../src/directoryLister.js';
+import {
+  listDirectSubdirectories,
+  isWslPath,
+  isUncWindowsPath,
+  resolveAccessiblePath
+} from '../src/directoryLister.js';
 import { safeRm } from './helpers.js';
 
 describe('directoryLister', () => {
@@ -23,6 +28,40 @@ describe('directoryLister', () => {
 
   afterEach(async () => {
     await safeRm(tempDir);
+  });
+
+  describe('WSL path handling', () => {
+    it('detects WSL-style paths', () => {
+      assert.strictEqual(isWslPath('/mnt/c/projects'), true);
+      assert.strictEqual(isWslPath('\\\\wsl$\\Ubuntu\\home\\user'), true);
+      assert.strictEqual(isWslPath('\\\\wsl.localhost\\Ubuntu\\home\\user'), true);
+      assert.strictEqual(isWslPath('C:\\projects'), false);
+      assert.strictEqual(isWslPath('./relative'), false);
+      assert.strictEqual(isWslPath(null), false);
+    });
+
+    it('detects UNC paths used for the cmd guard', () => {
+      assert.strictEqual(isUncWindowsPath('\\\\wsl.localhost\\Ubuntu\\home\\user'), true);
+      assert.strictEqual(isUncWindowsPath('\\\\wsl$\\Ubuntu\\home'), true);
+      assert.strictEqual(isUncWindowsPath('\\\\server\\share\\dir'), true);
+      assert.strictEqual(isUncWindowsPath('C:\\projects'), false);
+      assert.strictEqual(isUncWindowsPath('/mnt/c/projects'), false);
+      assert.strictEqual(isUncWindowsPath('./relative'), false);
+      assert.strictEqual(isUncWindowsPath(null), false);
+      assert.strictEqual(isUncWindowsPath(''), false);
+    });
+
+    it('passes WSL UNC paths through without requiring WSL tooling', () => {
+      if (process.platform !== 'win32') return;
+      const resolved = resolveAccessiblePath('\\\\wsl$\\Ubuntu\\home\\user\\project');
+      assert.strictEqual(resolved, '\\\\wsl$\\Ubuntu\\home\\user\\project');
+    });
+
+    it('falls back to plain resolve for POSIX paths when WSL is unavailable', () => {
+      const resolved = resolveAccessiblePath('/mnt/c/projects');
+      assert.strictEqual(typeof resolved, 'string');
+      assert(resolved.length > 0);
+    });
   });
 
   describe('listDirectSubdirectories', () => {

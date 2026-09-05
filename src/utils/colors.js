@@ -95,7 +95,7 @@ export function bgCyan(text) {
   return wrap(colors.bg.cyan, text);
 }
 
-const spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+const spinnerFrames = ['-', '\\', '|', '/'];
 
 export class ProgressBar {
   constructor(total, options = {}) {
@@ -152,26 +152,26 @@ export class ProgressBar {
     const percentage = this.total > 0 ? Math.floor((this.current / this.total) * 100) : 0;
     const filledWidth = this.total > 0 ? Math.floor((this.current / this.total) * this.options.width) : 0;
     const emptyWidth = this.options.width - filledWidth;
-    
-    const bar = '█'.repeat(filledWidth) + '░'.repeat(emptyWidth);
-    const spinner = this.spinnerInterval ? spinnerFrames[this.spinnerIndex] : '✓';
-    
+
+    const bar = '#'.repeat(filledWidth) + '-'.repeat(emptyWidth);
+    const spinner = this.spinnerInterval ? spinnerFrames[this.spinnerIndex] : 'o';
+
     let output = '';
-    
+
     if (this.options.showSpinner) {
       output += `${cyan(spinner)} `;
     }
-    
+
     output += `[${green(bar)}]`;
-    
+
     if (this.options.showPercentage) {
       output += ` ${bold(`${percentage}%`)}`;
     }
-    
+
     if (this.options.showCount) {
       output += ` ${dim(`(${this.current}/${this.total})`)}`;
     }
-    
+
     if (this.options.showElapsed) {
       const elapsed = Math.floor((now - this.startTime) / 1000);
       output += ` ${gray(`[${elapsed}s]`)}`;
