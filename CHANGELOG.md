@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.5.0](https://github.com/chandq/batch-exec-cli/compare/v1.4.0...v1.5.0) (2026-09-05)
+
+
+### Features
+
+* **cli:** add --dir/--match execution and Homebrew/Scoop publishing ([7bd8c78](https://github.com/chandq/batch-exec-cli/commit/7bd8c781d02e56b8b8a9c9ab2a7160e4693b4a5d))
+
+
+### Bug Fixes
+
+* ensure print stdout ([ac9cf79](https://github.com/chandq/batch-exec-cli/commit/ac9cf79a04b3c22edfba81f8c784b595f6270f27))
+* harden Windows & WSL shell handling ([27837f3](https://github.com/chandq/batch-exec-cli/commit/27837f3df3fdd3079f12ccc0bac19b093cb7fc7d))
+* **shell:** preserve PowerShell table output and stop leaking process cwd ([682fbaa](https://github.com/chandq/batch-exec-cli/commit/682fbaa86f537925576f176d0ea43a84890be3ef))
+* **shell:** stop truncating PowerShell table output ([bce39bf](https://github.com/chandq/batch-exec-cli/commit/bce39bf08ead4ab33c121091e7d649a566eb7409))
+
 ## [1.4.0](https://github.com/chandq/batch-exec-cli/compare/v1.3.4...v1.4.0) (2026-08-31)
 
 
