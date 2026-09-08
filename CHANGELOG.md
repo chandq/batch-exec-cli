@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.5.2](https://github.com/chandq/batch-exec-cli/compare/v1.5.1...v1.5.2) (2026-09-08)
+
+
+### Bug Fixes
+
+* ERR_UNKNOWN_FILE_EXTENSION  issue for under node 18 ([44b3b6f](https://github.com/chandq/batch-exec-cli/commit/44b3b6f2e8a6e1e1bf1f82a69e3ba5ef890617ca))
+
 ### [1.5.1](https://github.com/chandq/batch-exec-cli/compare/v1.5.0...v1.5.1) (2026-09-05)
 
 
