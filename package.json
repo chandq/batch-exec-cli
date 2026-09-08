@@ -5,7 +5,7 @@
   "type": "module",
   "main": "src/index.js",
   "bin": {
-    "batch-exec": "bin/batch-exec"
+    "batch-exec": "bin/batch-exec.js"
   },
   "scripts": {
     "test": "node --test",
