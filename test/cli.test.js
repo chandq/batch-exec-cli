@@ -15,7 +15,7 @@ function toPosixPath(p) {
   return p.replace(/\\/g, '/');
 }
 
-// True when a real, usable bash can be resolved (Git Bash on Windows, bash on
+// True when a real, usable bash can be resolved (Git Bash on Windows, bash  on
 // Unix). CLI tests that run inner commands with --shell bash need it.
 function bashAvailable() {
   try {
