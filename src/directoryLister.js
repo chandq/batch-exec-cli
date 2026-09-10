@@ -56,10 +56,16 @@ export function resolveAccessiblePath(targetDir) {
   return path.resolve(targetDir);
 }
 
-export async function listDirectSubdirectories(targetDir, skipPatterns = []) {
-  const absoluteTargetDir = resolveAccessiblePath(targetDir);
+/**
+ * List the direct subdirectories of an ALREADY-resolved absolute path.
+ *
+ * Split out so callers that already hold a resolved path (batchExecute resolves
+ * the target before its cmd/UNC check) do not pay for a second resolution - and
+ * so the resolve step runs exactly once per invocation by construction.
+ */
+export async function listSubdirectories(absoluteDir, skipPatterns = []) {
   try {
-    const entries = await fs.readdir(absoluteTargetDir, { withFileTypes: true });
+    const entries = await fs.readdir(absoluteDir, { withFileTypes: true });
     const subdirs = [];
 
     for (const entry of entries) {
@@ -73,11 +79,15 @@ export async function listDirectSubdirectories(targetDir, skipPatterns = []) {
     return subdirs.sort();
   } catch (error) {
     if (error.code === 'ENOENT') {
-      throw new Error(`Directory not found: ${absoluteTargetDir}`);
+      throw new Error(`Directory not found: ${absoluteDir}`);
     }
     if (error.code === 'ENOTDIR') {
-      throw new Error(`Not a directory: ${absoluteTargetDir}`);
+      throw new Error(`Not a directory: ${absoluteDir}`);
     }
     throw error;
   }
+}
+
+export async function listDirectSubdirectories(targetDir, skipPatterns = []) {
+  return listSubdirectories(resolveAccessiblePath(targetDir), skipPatterns);
 }

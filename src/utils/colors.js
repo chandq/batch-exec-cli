@@ -97,6 +97,24 @@ export function bgCyan(text) {
 
 const spinnerFrames = ['-', '\\', '|', '/'];
 
+/**
+ * Whether a human is plausibly reading stdout.
+ *
+ * `process.stdout.isTTY` is the primary signal, but it is not sufficient on
+ * Windows: mintty (Git Bash / MSYS2) runs native programs against a pipe
+ * instead of a Windows console, so Node reports no TTY even though a terminal
+ * is attached and drawing frames works fine. Those shells mark the environment
+ * with MSYSTEM plus a real TERM. The trade-off is that redirecting output from
+ * such a shell inherits both too; `--quiet` and `--no-progress` are the way to
+ * ask for a clean stream.
+ */
+export function stdoutIsTerminal(stream = process.stdout, env = process.env, platform = process.platform) {
+  if (stream?.isTTY === true) return true;
+  if (platform !== 'win32') return false;
+  const term = env.TERM;
+  return Boolean(env.MSYSTEM) && typeof term === 'string' && term !== '' && term !== 'dumb';
+}
+
 export class ProgressBar {
   constructor(total, options = {}) {
     this.total = total;
@@ -105,6 +123,10 @@ export class ProgressBar {
     this.lastUpdate = 0;
     this.spinnerIndex = 0;
     this.spinnerInterval = null;
+    // Progress is a terminal affordance. When stdout is piped or redirected
+    // (CI, `| wc -l`) nobody reads the frames, and each one is a synchronous
+    // console write - notably expensive on Windows - so draw nothing at all.
+    this.isInteractive = stdoutIsTerminal();
     this.options = {
       width: 40,
       showSpinner: true,
@@ -116,6 +138,7 @@ export class ProgressBar {
   }
 
   start() {
+    if (!this.isInteractive) return;
     if (this.options.showSpinner) {
       this.spinnerInterval = setInterval(() => {
         this.spinnerIndex = (this.spinnerIndex + 1) % spinnerFrames.length;
@@ -127,12 +150,12 @@ export class ProgressBar {
 
   update(current) {
     this.current = current;
-    this.render(true);
+    this.render(false);
   }
 
   increment() {
     this.current++;
-    this.render(true);
+    this.render(false);
   }
 
   stop() {
@@ -140,11 +163,15 @@ export class ProgressBar {
       clearInterval(this.spinnerInterval);
       this.spinnerInterval = null;
     }
+    if (!this.isInteractive) return;
+    // Force the closing frame so the bar always ends on its final state.
     this.render(true);
     console.log();
   }
 
+  /** `clear` also erases the line first; reserved for the first/last frame. */
   render(clear = false) {
+    if (!this.isInteractive) return;
     const now = Date.now();
     if (!clear && now - this.lastUpdate < 50) return;
     this.lastUpdate = now;
@@ -185,6 +212,7 @@ export class ProgressBar {
 }
 
 export function clearLine() {
+  if (!stdoutIsTerminal()) return;
   process.stdout.write('\r' + ' '.repeat(process.stdout.columns || 80) + '\r');
 }
 

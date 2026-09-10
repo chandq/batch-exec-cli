@@ -2,12 +2,28 @@ import path from 'path';
 import { stat as fsStat } from 'node:fs/promises';
 import { $ } from 'zx';
 import { parseIgnoreFile } from './ignoreParser.js';
-import { listDirectSubdirectories, resolveAccessiblePath, isUncWindowsPath } from './directoryLister.js';
+import { listSubdirectories, resolveAccessiblePath, isUncWindowsPath } from './directoryLister.js';
 import { resolveShell, resolveDefaultConfig, normalizeCommandOutput, decodeCmdOutput } from './shell.js';
+import { runWithConcurrency, resolveConcurrency } from './concurrency.js';
 import { cyan, red, ProgressBar, clearLine } from './utils/colors.js';
 
 export { parseIgnoreFile };
-export { listDirectSubdirectories };
+export { listDirectSubdirectories } from './directoryLister.js';
+
+/**
+ * Quote that does nothing, used for raw mode.
+ *
+ * zx's buildCmd() runs every interpolated value through the executor's quote
+ * function, which is what keeps `|`, `&&` and redirects from being interpreted
+ * (they arrive at the program as literal text). Substituting an identity
+ * function hands the command line to the shell verbatim, so the shell - which
+ * is spawned anyway - parses it. Raw mode therefore costs no extra process.
+ *
+ * buildCmd maps array args element-wise (`args[i].map(x => quote(subs(x)))`),
+ * so this is applied per argument and the pieces are joined with spaces; the
+ * shell re-splits them, which is exactly what raw mode asks for.
+ */
+const rawQuote = value => String(value);
 
 function resolveShellConfig(shellOption) {
   // On Windows the zx default (bash from PATH) may resolve to the broken WSL
@@ -52,7 +68,7 @@ function captureOutput(output, shellConfig, stream) {
   return normalizeCommandOutput(output?.[stream] ?? '', shellConfig?.syntax);
 }
 
-async function executeInDirectory(subdirPath, command, args, verbose, shellConfig) {
+async function executeInDirectory(subdirPath, command, args, { verbose, shellConfig, raw }) {
   try {
     if (verbose) {
       console.log(`=== Executing in: ${cyan(subdirPath)} ===`);
@@ -74,9 +90,9 @@ async function executeInDirectory(subdirPath, command, args, verbose, shellConfi
           shell: shellConfig.executable,
           prefix: shellConfig.prefix,
           postfix: shellConfig.postfix,
-          quote: shellConfig.quote
+          quote: raw ? rawQuote : shellConfig.quote
         }
-      : { cwd: subdirPath };
+      : { cwd: subdirPath, ...(raw ? { quote: rawQuote } : {}) };
     const execute = $(executorOptions);
 
     if (verbose) {
@@ -130,12 +146,18 @@ export async function batchExecute(targetDir, command, args, options = {}) {
     verbose = false,
     showProgress = true,
     parallel = true,
+    concurrency: requestedConcurrency,
+    raw = false,
     shell: shellOption
   } = options;
 
   // Validate regexes up front so a typo fails fast, even with no directories.
   const matchRegexes = compileMatchPatterns(matchPatterns);
   const shellConfig = resolveShellConfig(shellOption);
+
+  // 0 = unlimited, which is the default on every platform (see
+  // resolveConcurrency for why Windows is not capped).
+  const concurrency = resolveConcurrency(requestedConcurrency);
 
   // Resolve the target through WSL-aware path handling BEFORE path.resolve,
   // otherwise /mnt/... or \\wsl$\... paths would be mangled into D:\mnt\...
@@ -144,7 +166,9 @@ export async function batchExecute(targetDir, command, args, options = {}) {
 
   assertCmdSupportsTarget(shellConfig, absoluteTargetDir);
 
-  let subdirs = await listDirectSubdirectories(absoluteTargetDir, skipPaths);
+  // The path is already resolved above, so list it directly rather than going
+  // through listDirectSubdirectories(), which would resolve it a second time.
+  let subdirs = await listSubdirectories(absoluteTargetDir, skipPaths);
   if (matchRegexes.length > 0) {
     // Positive include filter: keep only directories whose name matches at
     // least one --match pattern (applied in addition to the --skip excludes).
@@ -160,9 +184,9 @@ export async function batchExecute(targetDir, command, args, options = {}) {
   }
 
   if (parallel) {
-    const promises = subdirs.map(async (subdir, index) => {
+    const tasks = subdirs.map(subdir => async () => {
       const subdirPath = path.join(absoluteTargetDir, subdir);
-      const result = await executeInDirectory(subdirPath, command, args, verbose, shellConfig);
+      const result = await executeInDirectory(subdirPath, command, args, { verbose, shellConfig, raw });
 
       if (progressBar) {
         progressBar.increment();
@@ -171,8 +195,8 @@ export async function batchExecute(targetDir, command, args, options = {}) {
       return { directory: subdir, ...result };
     });
 
-    // Promise.all preserves input order, so index i matches subdirs[i].
-    const resolvedResults = await Promise.all(promises);
+    // The pool preserves input order, so index i matches subdirs[i].
+    const resolvedResults = await runWithConcurrency(tasks, concurrency);
     for (let i = 0; i < subdirs.length; i++) {
       results.push(resolvedResults[i]);
     }
@@ -180,7 +204,7 @@ export async function batchExecute(targetDir, command, args, options = {}) {
     for (let i = 0; i < subdirs.length; i++) {
       const subdir = subdirs[i];
       const subdirPath = path.join(absoluteTargetDir, subdir);
-      const result = await executeInDirectory(subdirPath, command, args, verbose, shellConfig);
+      const result = await executeInDirectory(subdirPath, command, args, { verbose, shellConfig, raw });
 
       results.push({ directory: subdir, ...result });
 
@@ -208,7 +232,7 @@ export async function batchExecute(targetDir, command, args, options = {}) {
  * where `directory` is the target path as given.
  */
 export async function runInDirectory(targetDir, command, args, options = {}) {
-  const { verbose = false, shell: shellOption } = options;
+  const { verbose = false, raw = false, shell: shellOption } = options;
   const shellConfig = resolveShellConfig(shellOption);
 
   // Resolve the target through WSL-aware path handling BEFORE path.resolve,
@@ -233,6 +257,6 @@ export async function runInDirectory(targetDir, command, args, options = {}) {
     throw error;
   }
 
-  const result = await executeInDirectory(absoluteTargetDir, command, args, verbose, shellConfig);
+  const result = await executeInDirectory(absoluteTargetDir, command, args, { verbose, shellConfig, raw });
   return { directory: targetDir, ...result };
 }

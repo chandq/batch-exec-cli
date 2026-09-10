@@ -21,6 +21,23 @@ export async function parseIgnoreFile(ignoreFilePath) {
   }
 }
 
+// Compiled wildcard patterns, keyed by the original ignore-file pattern. Every
+// directory is tested against every pattern, so recompiling the same RegExp in
+// the loop cost work proportional to directories x patterns. Compilation errors
+// are deliberately not cached: an invalid pattern keeps throwing, as before.
+const wildcardRegexCache = new Map();
+
+function wildcardRegex(pattern) {
+  if (!wildcardRegexCache.has(pattern)) {
+    const regexPattern = pattern
+      .replace(/\./g, '\\.')
+      .replace(/\*/g, '.*')
+      .replace(/\?/g, '.');
+    wildcardRegexCache.set(pattern, new RegExp(`^${regexPattern}$`));
+  }
+  return wildcardRegexCache.get(pattern);
+}
+
 export function shouldSkipDirectory(dirName, skipPatterns) {
   if (!skipPatterns || skipPatterns.length === 0) {
     return false;
@@ -39,12 +56,7 @@ export function shouldSkipDirectory(dirName, skipPatterns) {
     }
 
     if (pattern.includes('*')) {
-      const regexPattern = pattern
-        .replace(/\./g, '\\.')
-        .replace(/\*/g, '.*')
-        .replace(/\?/g, '.');
-      const regex = new RegExp(`^${regexPattern}$`);
-      return regex.test(dirName);
+      return wildcardRegex(pattern).test(dirName);
     }
 
     return false;
