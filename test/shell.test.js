@@ -4,13 +4,18 @@ import path from 'path';
 import {
   quoteCmd,
   gitBashCandidates,
+  bashCandidatesFromPath,
+  gitRootBashCandidates,
+  isWslBashShim,
   resolveShell,
   resolveDefaultConfig,
   shellDisplayName,
   normalizeCommandOutput,
   decodeCmdOutput,
   decodeWithCodePage,
-  codePageToEncodingLabel
+  codePageToEncodingLabel,
+  containsShellOperators,
+  parseOemCodePage
 } from '../src/shell.js';
 
 describe('shell configuration', () => {
@@ -208,5 +213,196 @@ describe('shell configuration', () => {
         path.join('C:\\Program Files (x86)', 'Git', 'bin', 'bash.exe')
       ]
     );
+  });
+});
+
+describe('Windows bash candidate discovery', () => {
+  it('lists every bash.exe on PATH, not just the first hit', () => {
+    // which.sync() stops at the WSL shim; the Git Bash behind it must still be
+    // found, otherwise --shell bash fails on a machine that has both.
+    const env = { PATH: 'C:\\Windows\\System32;C:\\Program Files\\Git\\usr\\bin;D:\\tools' };
+    const exists = candidate =>
+      candidate === 'C:\\Windows\\System32\\bash.exe' ||
+      candidate === 'C:\\Program Files\\Git\\usr\\bin\\bash.exe';
+
+    assert.deepStrictEqual(bashCandidatesFromPath(env, 'win32', exists), [
+      'C:\\Windows\\System32\\bash.exe',
+      'C:\\Program Files\\Git\\usr\\bin\\bash.exe'
+    ]);
+  });
+
+  it('unquotes PATH entries and dedupes case-insensitively', () => {
+    const env = { PATH: '"C:\\Program Files\\Git\\bin";c:\\program files\\git\\BIN' };
+
+    assert.deepStrictEqual(bashCandidatesFromPath(env, 'win32', () => true), [
+      'C:\\Program Files\\Git\\bin\\bash.exe'
+    ]);
+  });
+
+  it('reads the Path spelling and stays inert off Windows', () => {
+    assert.deepStrictEqual(bashCandidatesFromPath({ Path: 'C:\\only' }, 'win32', () => true), [
+      'C:\\only\\bash.exe'
+    ]);
+    assert.deepStrictEqual(bashCandidatesFromPath({}, 'win32', () => true), []);
+    assert.deepStrictEqual(bashCandidatesFromPath({ PATH: 'C:\\x' }, 'darwin', () => true), []);
+  });
+
+  it('derives the Git root from a git.exe found on PATH', () => {
+    // A normal Git for Windows install.
+    assert.deepStrictEqual(gitRootBashCandidates('C:\\Program Files\\Git\\cmd\\git.exe', 'win32'), [
+      'C:\\Program Files\\Git\\bin\\bash.exe',
+      'C:\\Program Files\\Git\\usr\\bin\\bash.exe'
+    ]);
+    // MSYS2-style tree, where the shell lives under mingw64.
+    assert.deepStrictEqual(gitRootBashCandidates('D:\\Git\\mingw64\\bin\\git.exe', 'win32'), [
+      'D:\\Git\\bin\\bash.exe',
+      'D:\\Git\\usr\\bin\\bash.exe'
+    ]);
+    // MSYS2 itself: usr\bin\git.exe sits beside the shell.
+    assert.deepStrictEqual(gitRootBashCandidates('C:\\msys64\\usr\\bin\\git.exe', 'win32'), [
+      'C:\\msys64\\usr\\bin\\bash.exe',
+      'C:\\msys64\\usr\\usr\\bin\\bash.exe'
+    ]);
+  });
+
+  it('ignores unusable git paths and other platforms', () => {
+    assert.deepStrictEqual(gitRootBashCandidates('/usr/bin/git', 'win32'), [
+      '\\usr\\bin\\bash.exe',
+      '\\usr\\usr\\bin\\bash.exe'
+    ]);
+    assert.deepStrictEqual(gitRootBashCandidates('C:\\Git\\cmd\\git.exe', 'linux'), []);
+    assert.deepStrictEqual(gitRootBashCandidates(null, 'win32'), []);
+    assert.deepStrictEqual(gitRootBashCandidates('', 'win32'), []);
+  });
+});
+
+describe('WSL bash shim detection', () => {
+  const windowsEnv = { SystemRoot: 'C:\\Windows' };
+
+  it('rejects the System32 bash shim regardless of case or separators', () => {
+    // Probing this binary boots the WSL VM (seconds, or the full probe
+    // timeout), so it must be rejected by path instead of being spawned.
+    assert.strictEqual(isWslBashShim('C:\\Windows\\System32\\bash.exe', windowsEnv, 'win32'), true);
+    assert.strictEqual(isWslBashShim('c:\\WINDOWS\\system32\\bash.exe', windowsEnv, 'win32'), true);
+    assert.strictEqual(isWslBashShim('C:/Windows/System32/bash.exe', windowsEnv, 'win32'), true);
+  });
+
+  it('derives System32 from windir when SystemRoot is unset', () => {
+    assert.strictEqual(isWslBashShim('D:\\Win\\System32\\bash.exe', { windir: 'D:\\Win' }, 'win32'), true);
+  });
+
+  it('keeps a real Git Bash install', () => {
+    assert.strictEqual(isWslBashShim('C:\\Program Files\\Git\\bin\\bash.exe', windowsEnv, 'win32'), false);
+  });
+
+  it('does not match a sibling directory that merely shares the prefix', () => {
+    assert.strictEqual(isWslBashShim('C:\\Windows\\System32x\\bash.exe', windowsEnv, 'win32'), false);
+  });
+
+  it('ignores the check outside Windows and for unusable input', () => {
+    assert.strictEqual(isWslBashShim('C:\\Windows\\System32\\bash.exe', windowsEnv, 'darwin'), false);
+    assert.strictEqual(isWslBashShim('/bin/bash', {}, 'linux'), false);
+    assert.strictEqual(isWslBashShim('', windowsEnv, 'win32'), false);
+    assert.strictEqual(isWslBashShim(null, windowsEnv, 'win32'), false);
+  });
+});
+
+describe('containsShellOperators', () => {
+  it('detects bare shell operators', () => {
+    for (const line of [
+      'ls | wc -l',
+      'a && b',
+      'a || b',
+      'echo hi > out.txt',
+      'cat < in.txt',
+      'a; b',
+      'echo `date`',
+      'echo $(date)',
+      'ls |wc'
+    ]) {
+      assert.strictEqual(containsShellOperators(line), true, `expected ${JSON.stringify(line)} to be raw`);
+    }
+  });
+
+  it('detects doubled operators even when tightly written', () => {
+    assert.strictEqual(containsShellOperators('a&&b'), true);
+    assert.strictEqual(containsShellOperators('echo hi>>log'), true);
+  });
+
+  it('ignores operators inside quotes', () => {
+    assert.strictEqual(containsShellOperators('echo "a | b"'), false);
+    assert.strictEqual(containsShellOperators("echo 'a | b'"), false);
+    assert.strictEqual(containsShellOperators('git log --grep="a|b"'), false);
+  });
+
+  it('leaves arguments that merely contain an operator alone', () => {
+    // A false positive here would silently change how a working command runs,
+    // so these must stay on the quoted (default) path.
+    assert.strictEqual(containsShellOperators('git log --grep=a|b'), false);
+    assert.strictEqual(containsShellOperators('curl https://host/p?a=1&b=2'), false);
+    assert.strictEqual(containsShellOperators('echo a;b'), false);
+  });
+
+  it('returns false for plain commands and unusable input', () => {
+    assert.strictEqual(containsShellOperators('echo hi'), false);
+    assert.strictEqual(containsShellOperators('ls -la'), false);
+    assert.strictEqual(containsShellOperators(''), false);
+    assert.strictEqual(containsShellOperators(null), false);
+    assert.strictEqual(containsShellOperators(undefined), false);
+  });
+});
+
+describe('OEM code page detection', () => {
+  it('parses the OEMCP value out of reg.exe output', () => {
+    // The value name and type are not localized, so this holds on any display
+    // language. Real output has a header line and a blank line around it.
+    const output = [
+      '',
+      'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Nls\\CodePage',
+      '    OEMCP    REG_SZ    936',
+      ''
+    ].join('\r\n');
+
+    assert.strictEqual(parseOemCodePage(output), 936);
+    assert.strictEqual(parseOemCodePage('    OEMCP    REG_SZ    65001'), 65001);
+  });
+
+  it('returns null when OEMCP is absent or unusable', () => {
+    // reg.exe writes an error to stderr and exits non-zero for a missing key,
+    // so a non-matching body must not be mistaken for a code page.
+    assert.strictEqual(parseOemCodePage('ERROR: The system was unable to find the specified registry key'), null);
+    assert.strictEqual(parseOemCodePage('    OEMCP    REG_SZ    0'), null);
+    assert.strictEqual(parseOemCodePage(''), null);
+    assert.strictEqual(parseOemCodePage(null), null);
+    assert.strictEqual(parseOemCodePage(undefined), null);
+  });
+});
+
+describe('decodeCmdOutput fast path', () => {
+  it('returns pure-ASCII buffers verbatim without a code page', () => {
+    const fakeOutput = {
+      _dto: { store: { stdout: [Buffer.from('M src/app.js\n')], stderr: [] } },
+      stdout: 'lossy-utf8-fallback'
+    };
+
+    assert.strictEqual(decodeCmdOutput(fakeOutput, 'stdout', 936), 'M src/app.js\n');
+  });
+
+  it('joins multiple ASCII chunks in order', () => {
+    const fakeOutput = {
+      _dto: { store: { stdout: [Buffer.from('one\n'), Buffer.from('two\n')], stderr: [] } },
+      stdout: ''
+    };
+
+    assert.strictEqual(decodeCmdOutput(fakeOutput, 'stdout', 936), 'one\ntwo\n');
+  });
+
+  it('still decodes non-ASCII buffers with the requested code page', () => {
+    // Guards the fast path against swallowing the CJK regression: one byte
+    // above 0x7f must fall back to code-page decoding.
+    const gbkWithAscii = Buffer.concat([Buffer.from('C:'), Buffer.from([0xc7, 0xfd, 0xb6, 0xaf])]);
+    const fakeOutput = { _dto: { store: { stdout: [gbkWithAscii], stderr: [] } }, stdout: '' };
+
+    assert.strictEqual(decodeCmdOutput(fakeOutput, 'stdout', 936), 'C:驱动');
   });
 });

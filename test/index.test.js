@@ -4,7 +4,19 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 import { batchExecute, runInDirectory } from '../src/index.js';
+import { resolveShell } from '../src/shell.js';
 import { safeRm } from './helpers.js';
+
+// True when a real, usable bash can be resolved (Git Bash on Windows, bash on
+// Unix). Pipe tests need a POSIX shell to interpret the operators.
+function bashAvailable() {
+  try {
+    resolveShell('bash');
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 describe('batchExecute', () => {
   let tempDir;
@@ -206,5 +218,107 @@ describe('runInDirectory', () => {
       runInDirectory(path.join(tempDir, 'does-not-exist'), 'echo', ['x'], { showProgress: false }),
       /Directory not found/
     );
+  });
+});
+
+describe('concurrency ordering', () => {
+  let tempDir;
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'batch-exec-conc-'));
+    // Names sort already; the pool must return them in this order even though
+    // completion order varies.
+    for (const name of ['c1', 'c2', 'c3', 'c4', 'c5', 'c6']) {
+      await fs.mkdir(path.join(tempDir, name));
+    }
+  });
+
+  afterEach(async () => {
+    await safeRm(tempDir);
+  });
+
+  for (const concurrency of [1, 2, 3, 0, 100]) {
+    it(`should keep directory order with concurrency ${concurrency}`, async () => {
+      const results = await batchExecute(tempDir, 'pwd', [], {
+        showProgress: false,
+        concurrency
+      });
+
+      assert.deepStrictEqual(
+        results.map(r => r.directory),
+        ['c1', 'c2', 'c3', 'c4', 'c5', 'c6']
+      );
+      results.forEach(result => assert.strictEqual(result.success, true));
+    });
+  }
+});
+
+describe('raw mode', () => {
+  let tempDir;
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'batch-exec-raw-'));
+    await fs.mkdir(path.join(tempDir, 'dir1'));
+    await fs.mkdir(path.join(tempDir, 'dir2'));
+  });
+
+  afterEach(async () => {
+    await safeRm(tempDir);
+  });
+
+  it('should pass shell operators through to the shell when raw is set', async t => {
+    if (!bashAvailable()) return t.skip('bash is not installed or not on PATH');
+
+    const results = await batchExecute(tempDir, 'echo', ['hi', '|', 'wc', '-l'], {
+      shell: 'bash',
+      raw: true,
+      showProgress: false,
+      parallel: false
+    });
+
+    results.forEach(result => {
+      assert.strictEqual(result.success, true);
+      // `echo hi | wc -l` prints exactly one line, so the pipeline really ran.
+      assert.strictEqual(result.stdout.trim(), '1');
+    });
+  });
+
+  it('should keep operators literal when raw is not set', async t => {
+    if (!bashAvailable()) return t.skip('bash is not installed or not on PATH');
+
+    const results = await batchExecute(tempDir, 'echo', ['hi', '|', 'wc', '-l'], {
+      shell: 'bash',
+      showProgress: false,
+      parallel: false
+    });
+
+    results.forEach(result => {
+      assert.strictEqual(result.success, true);
+      assert.strictEqual(result.stdout.trim(), 'hi | wc -l');
+    });
+  });
+
+  it('should run a pipeline in a single directory with --dir-style invocation', async t => {
+    if (!bashAvailable()) return t.skip('bash is not installed or not on PATH');
+
+    const target = path.join(tempDir, 'dir1');
+    await fs.writeFile(path.join(target, 'a.txt'), '');
+    await fs.writeFile(path.join(target, 'b.txt'), '');
+
+    const result = await runInDirectory(target, 'ls', ['|', 'wc', '-l'], {
+      shell: 'bash',
+      raw: true
+    });
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.stdout.trim(), '2');
+  });
+
+  it('should preserve argument boundaries that contain spaces when quoting normally', async t => {
+    if (!bashAvailable()) return t.skip('bash is not installed or not on PATH');
+
+    const results = await runInDirectory(tempDir, 'printf', ['%s', 'a b'], { shell: 'bash' });
+
+    assert.strictEqual(results.stdout, 'a b');
   });
 });
