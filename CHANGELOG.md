@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.5.3](https://github.com/chandq/batch-exec-cli/compare/v1.5.2...v1.5.3) (2026-09-10)
+
+
+### Bug Fixes
+
+* **cli:** add shell pipes, scriptable --quiet, and fix slow Windows runs ([fbbbccf](https://github.com/chandq/batch-exec-cli/commit/fbbbccfa52cb90b2fb86c16dbbd28995718dd3fd))
+
 ### [1.5.2](https://github.com/chandq/batch-exec-cli/compare/v1.5.1...v1.5.2) (2026-09-08)
 
 
